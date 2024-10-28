@@ -8,7 +8,7 @@ from methods import StackRegressor, LSTMregressor
 from utils import *
 from pathlib import Path
 
-X, y, in_axis, out_axis, scale, filenames = load_all_data('../data/porous_unscaled', normalize_out=True)
+X, y, in_axis, out_axis, scale, filenames = load_all_data('../data/training_set', normalize_out=True)
 
 standardize = False
 no_accum_y = False

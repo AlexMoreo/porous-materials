@@ -97,3 +97,24 @@ class LSTMregressor:
             ypred = self.model(X)
             ypred = ypred.detach().cpu().numpy()
             return ypred
+
+class TheirBaseline:
+    def __init__(self, path):
+        self.path = path
+
+    def fit(self, X, y):
+        X, y = [], []
+        with open(self.path, 'rt') as fin:
+            lines = fin.readlines()
+            for line in lines:
+                Xi, yi = line.strip().split()
+                Xi = float(Xi)
+                yi = float(yi)
+                X.append(Xi)
+                y.append(yi)
+        self.X = np.asarray(X)
+        self.y = np.asarray(y)
+
+    def predict(self, X):
+        assert np.isclose(X, self.X).all(), 'wrong values'
+        return self.y
