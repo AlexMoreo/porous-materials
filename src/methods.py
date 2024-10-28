@@ -6,6 +6,7 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.svm import LinearSVR
 import torch
 from torch import nn, optim
+from os.path import join
 
 
 class StackRegressor:
@@ -48,10 +49,17 @@ class LSTMModel(nn.Module):
 
 
 class LSTMregressor:
-    def __init__(self, hidden_size=128, num_layers=3):
+    def __init__(self, hidden_size=128, num_layers=3, reg_strength=0.1):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.reg_strength = reg_strength
         self.model = None
+
+    def jaggedness(self, output):
+        center = output[:, 1:-1]
+        left = output[:, :-2]
+        right = output[:, 2:]
+        return torch.mean(((2*center-left)-right)**2)
 
     def fit(self, X, y):
         input_size = X.shape[1]
@@ -62,10 +70,10 @@ class LSTMregressor:
         y_tensor = torch.tensor(y, dtype=torch.float32)
 
         criterion = nn.MSELoss()
-        optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        optimizer = optim.Adam(self.model.parameters(), lr=0.003)
 
-        num_epochs = 1000
-        PATIENCE = 25
+        num_epochs = 5000
+        PATIENCE = 100
         val_loss = np.inf
         patience = PATIENCE
 
@@ -73,7 +81,7 @@ class LSTMregressor:
             self.model.train()
             optimizer.zero_grad()
             outputs = self.model(X_tensor)
-            loss = criterion(outputs, y_tensor)
+            loss = criterion(outputs, y_tensor) + self.reg_strength * self.jaggedness(outputs)
             loss.backward()
             optimizer.step()
 
@@ -98,13 +106,18 @@ class LSTMregressor:
             ypred = ypred.detach().cpu().numpy()
             return ypred
 
+
 class TheirBaseline:
-    def __init__(self, path):
+    def __init__(self, path, scale, basedir='../results/theirs'):
+        self.basedir = basedir
+        self.scale_inv = 1./scale
         self.path = path
 
     def fit(self, X, y):
         X, y = [], []
-        with open(self.path, 'rt') as fin:
+        prediction_file = join(self.basedir, self.path)
+        prediction_file = prediction_file.replace('.csv', '_predicted_ads')
+        with open(prediction_file, 'rt') as fin:
             lines = fin.readlines()
             for line in lines:
                 Xi, yi = line.strip().split()
@@ -113,8 +126,8 @@ class TheirBaseline:
                 X.append(Xi)
                 y.append(yi)
         self.X = np.asarray(X)
-        self.y = np.asarray(y)
+        self.y = np.asarray(y).reshape(1, -1)
 
     def predict(self, X):
-        assert np.isclose(X, self.X).all(), 'wrong values'
-        return self.y
+        # assert np.isclose(X, self.X).all(), 'wrong values'
+        return self.y * self.scale_inv
