@@ -48,7 +48,7 @@ for i, (train, test) in enumerate(loo.split(X, y)):
 
     # method, reg = 'SVR', MultiOutputRegressor(LinearSVR())
     # method, reg = 'StackSVR', StackRegressor()
-    method, reg = 'lstm', LSTMregressor(hidden_size=128, num_layers=3)
+    method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
     # method, reg = 'their', TheirBaseline(filenames[test[0]], scale=test_scale)
     # method, reg = 'RF', RandomForestRegressor()
 
@@ -66,5 +66,6 @@ for i, (train, test) in enumerate(loo.split(X, y)):
     plot_result(out_axis, yte[0], yte_pred[0], f'../results/plots/{method}/{filenames[test[0]]}.png', err_fun=mse)
 
     errors.append(mse(yte, yte_pred))
+
 
 print(f'{method}\tMSE={np.mean(errors):.10f}+-{np.std(errors):.10f}')
