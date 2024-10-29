@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from unicodedata import bidirectional
 
 import numpy as np
 from sklearn.model_selection import LeaveOneOut
@@ -35,11 +36,12 @@ class StackRegressor:
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers):
+    def __init__(self, input_size, hidden_size, output_size, num_layers, bidirectional):
         super(LSTMModel, self).__init__()
 
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=bidirectional)
+        fc_input_size = hidden_size * 2 if bidirectional else hidden_size
+        self.fc = nn.Linear(fc_input_size   , output_size)
 
     def forward(self, x):
         lstm_out, _ = self.lstm(x)
@@ -49,10 +51,12 @@ class LSTMModel(nn.Module):
 
 
 class LSTMregressor:
-    def __init__(self, hidden_size=128, num_layers=3, reg_strength=0.1):
+    def __init__(self, hidden_size=128, num_layers=3, lr=0.003, reg_strength=0.1, bidirectional=True):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.lr = lr
         self.reg_strength = reg_strength
+        self.bidirectional = bidirectional
         self.model = None
 
     def jaggedness(self, output):
@@ -64,13 +68,14 @@ class LSTMregressor:
     def fit(self, X, y):
         input_size = X.shape[1]
         output_size = y.shape[1]
-        self.model = LSTMModel(input_size, hidden_size=self.hidden_size, output_size=output_size, num_layers=self.num_layers)
+        self.model = LSTMModel(input_size, hidden_size=self.hidden_size, output_size=output_size,
+                               num_layers=self.num_layers, bidirectional=self.bidirectional)
 
         X_tensor = torch.tensor(X, dtype=torch.float32).unsqueeze(1)
         y_tensor = torch.tensor(y, dtype=torch.float32)
 
         criterion = nn.MSELoss()
-        optimizer = optim.Adam(self.model.parameters(), lr=0.003)
+        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
         num_epochs = 5000
         PATIENCE = 100
@@ -91,7 +96,8 @@ class LSTMregressor:
             else:
                 patience-=1
 
-            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.10f}')
+            if epoch%10==0:
+                print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.10f}')
             if patience<=0:
                 print(f'Method stopped after {epoch} epochs')
                 break

@@ -28,6 +28,7 @@ def plot_result(out_axis, out_true, out_pred, savefig=None, err_fun=None):
         print(f"plot save at: {savefig}")
     else:
         plt.show()
+    plt.close()
 
 
 def mse(out_true, out_pred):

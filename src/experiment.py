@@ -1,12 +1,21 @@
+import os.path
+import pickle
+from collections import defaultdict
+from ossaudiodev import error
+
 import numpy as np
 from PIL.ImageOps import scale
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVR
 from sklearn.model_selection import LeaveOneOut
+from torch.backends.mkl import verbose
+
 from data import *
 from methods import StackRegressor, LSTMregressor, TheirBaseline
 from sklearn.ensemble import RandomForestRegressor
+
+from result_table.src.table import Table
 from utils import *
 from pathlib import Path
 
@@ -29,11 +38,34 @@ def remove_accum(y):
     return y
 
 
+def methods():
+    yield 'their', TheirBaseline(filenames[test[0]], scale=test_scale)
+    yield 'SVR', MultiOutputRegressor(LinearSVR())
+    # yield 'StackSVR', StackRegressor()
+    yield 'lstm-32-1', LSTMregressor(hidden_size=32, num_layers=1)
+    # yield 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
+    # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
+    yield 'RF', RandomForestRegressor()
+
+table = Table('mse')
+table_path = '../results/tables/mse.pdf'
+table.format.show_std = False
+table.format.mean_prec = 1
+table.format.stat_test = None
+ansia = True
+
+errors = defaultdict(lambda :[])
+test_names = []
+
 loo = LeaveOneOut()
-errors = []
 for i, (train, test) in enumerate(loo.split(X, y)):
     Xtr, ytr = X[train], y[train]
     Xte, yte = X[test], y[test]
+    test_name = filenames[test[0]]
+    test_name = test_name.replace('_', ', ')
+    test_name = test_name.replace('mu', '$\mu$')
+    test_name = test_name.replace('sigma', '$\sigma$')
+    test_name = test_name.replace('.csv', '')
 
     if standardize_input:
         zscorer = StandardScaler()
@@ -46,26 +78,47 @@ for i, (train, test) in enumerate(loo.split(X, y)):
 
     test_scale = scales[test[0]]
 
-    # method, reg = 'SVR', MultiOutputRegressor(LinearSVR())
-    # method, reg = 'StackSVR', StackRegressor()
-    method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
-    # method, reg = 'their', TheirBaseline(filenames[test[0]], scale=test_scale)
-    # method, reg = 'RF', RandomForestRegressor()
+    for method, reg in methods():
+        show_table = False
+        method_results_path = f'../results/errors/{method}.pkl'
+        if os.path.exists(method_results_path):
+            method_errors = pickle.load(open(method_results_path, 'rb'))
+        else:
+            os.makedirs(Path(method_results_path).parent, exist_ok=True)
+            method_errors = {}
 
-    reg.fit(Xtr, ytr)
+        if test_name not in method_errors:
+            reg.fit(Xtr, ytr)
+            yte_pred = reg.predict(Xte)
 
-    yte_pred = reg.predict(Xte)
+            if no_accum_y:
+                yte = np.cumsum(yte, axis=1)
+                yte_pred = np.cumsum(yte_pred, axis=1)
 
-    if no_accum_y:
-        yte = np.cumsum(yte, axis=1)
-        yte_pred = np.cumsum(yte_pred, axis=1)
+            yte_pred *= test_scale
+            yte *= test_scale
 
-    yte_pred *= test_scale
-    yte *= test_scale
+            plot_result(out_axis, yte[0], yte_pred[0], f'../results/plots/{method}/{filenames[test[0]]}.png', err_fun=mse)
 
-    plot_result(out_axis, yte[0], yte_pred[0], f'../results/plots/{method}/{filenames[test[0]]}.png', err_fun=mse)
+            error_mean = mse(yte, yte_pred)
+            method_errors[test_name] = error_mean
+            if ansia:
+                show_table = True
+        else:
+            error_mean = method_errors[test_name]
 
-    errors.append(mse(yte, yte_pred))
+        errors[method].append(error_mean)
+
+        pickle.dump(method_errors, open(method_results_path, 'wb'), pickle.HIGHEST_PROTOCOL)
+
+        table.add(benchmark=test_name, method=method, v=error_mean)
+        if show_table:
+            table.latexPDF(table_path, resizebox=True)
 
 
-print(f'{method}\tMSE={np.mean(errors):.10f}+-{np.std(errors):.10f}')
+
+    filenames.append(test_name)
+
+table.latexPDF(table_path, benchmark_order=sorted(filenames), verbose=False, resizebox=True)
+for method, errors_means in errors.items():
+    print(f'{method}\tMSE={np.mean(errors_means):.10f}+-{np.std(errors_means):.10f}')
