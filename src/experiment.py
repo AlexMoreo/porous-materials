@@ -9,7 +9,6 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVR
 from sklearn.model_selection import LeaveOneOut
-from torch.backends.mkl import verbose
 
 from data import *
 from methods import StackRegressor, NeuralRegressor, TheirBaseline, LSTMRegressor, FFModel
@@ -48,7 +47,11 @@ def methods():
     # yield 'lstm-256-4', LSTMRegressor(input_size, output_size, hidden_size=256, num_layers=4, bidirectional=True)
     # yield 'ff-128-256', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256]))
     yield 'ff-128-256-128-r02', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128]), reg_strength=0.1)
-    # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
+    yield 'ff-256-256-256-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[256,256,256,128,128]), reg_strength=0.1)   
+    yield 'ff-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,128], smooth_length=3), reg_strength=0.1)
+    yield 'ff-128-256-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128], smooth_length=3), reg_strength=0.1)
+
+ # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
     #yield 'RF', RandomForestRegressor()
 
 table = Table('mse')
