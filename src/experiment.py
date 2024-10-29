@@ -12,7 +12,7 @@ from sklearn.model_selection import LeaveOneOut
 from torch.backends.mkl import verbose
 
 from data import *
-from methods import StackRegressor, LSTMregressor, TheirBaseline
+from methods import StackRegressor, NeuralRegressor, TheirBaseline, LSTMRegressor, FFModel
 from sklearn.ensemble import RandomForestRegressor
 
 from result_table.src.table import Table
@@ -39,11 +39,14 @@ def remove_accum(y):
 
 
 def methods():
+    input_size = X.shape[1]
+    output_size = y.shape[1]
     yield 'their', TheirBaseline(filenames[test[0]], scale=test_scale)
-    yield 'SVR', MultiOutputRegressor(LinearSVR())
+    # yield 'SVR', MultiOutputRegressor(LinearSVR())
     # yield 'StackSVR', StackRegressor()
-    yield 'lstm-32-1', LSTMregressor(hidden_size=32, num_layers=1)
-    # yield 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
+    #yield 'lstm-32-1', LSTMregressor(hidden_size=32, num_layers=1)
+    yield 'lstm-256-4', LSTMRegressor(input_size, output_size, hidden_size=256, num_layers=4, bidirectional=True)
+    yield 'ff-128-256', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256]))
     # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
     yield 'RF', RandomForestRegressor()
 
@@ -115,10 +118,9 @@ for i, (train, test) in enumerate(loo.split(X, y)):
         if show_table:
             table.latexPDF(table_path, resizebox=True)
 
-
-
     filenames.append(test_name)
+    print(test_name)
 
-table.latexPDF(table_path, benchmark_order=sorted(filenames), verbose=False, resizebox=True)
+table.latexPDF(table_path, benchmark_order=sorted(table.benchmarks), verbose=False, resizebox=False)
 for method, errors_means in errors.items():
     print(f'{method}\tMSE={np.mean(errors_means):.10f}+-{np.std(errors_means):.10f}')

@@ -44,20 +44,43 @@ class LSTMModel(nn.Module):
         self.fc = nn.Linear(fc_input_size   , output_size)
 
     def forward(self, x):
+        x = x.unsqueeze(1)
         lstm_out, _ = self.lstm(x)
         output = self.fc(lstm_out[:, -1, :])
         return output
 
 
+class FFModel(nn.Module):
+    def __init__(self, input_size, output_size, hidden_sizes, activation=nn.ReLU):
+        """
+        Parameters:
+        - input_size (int): Number of input features.
+        - hidden_sizes (list of int): List containing the number of units in each hidden layer.
+        - output_size (int): Number of output units.
+        - activation (nn.Module): Activation function to use (default: ReLU).
+        """
+        super(FFModel, self).__init__()
 
-class LSTMregressor:
-    def __init__(self, hidden_size=128, num_layers=3, lr=0.003, reg_strength=0.1, bidirectional=True):
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
+        layers = []
+        in_features = input_size
+        for hidden_size in hidden_sizes:
+            layers.append(nn.Linear(in_features, hidden_size))
+            layers.append(activation())
+            in_features = hidden_size
+
+        layers.append(nn.Linear(in_features, output_size))
+        self.network = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.network(x)
+
+
+class NeuralRegressor:
+    def __init__(self, model, lr=0.003, reg_strength=0.1):
+        self.model = model
         self.lr = lr
         self.reg_strength = reg_strength
-        self.bidirectional = bidirectional
-        self.model = None
+        self.model = model
 
     def jaggedness(self, output):
         center = output[:, 1:-1]
@@ -66,12 +89,7 @@ class LSTMregressor:
         return torch.mean(((2*center-left)-right)**2)
 
     def fit(self, X, y):
-        input_size = X.shape[1]
-        output_size = y.shape[1]
-        self.model = LSTMModel(input_size, hidden_size=self.hidden_size, output_size=output_size,
-                               num_layers=self.num_layers, bidirectional=self.bidirectional)
-
-        X_tensor = torch.tensor(X, dtype=torch.float32).unsqueeze(1)
+        X_tensor = torch.tensor(X, dtype=torch.float32)
         y_tensor = torch.tensor(y, dtype=torch.float32)
 
         criterion = nn.MSELoss()
@@ -96,7 +114,7 @@ class LSTMregressor:
             else:
                 patience-=1
 
-            if epoch%10==0:
+            if True or epoch%100==0:
                 print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.10f}')
             if patience<=0:
                 print(f'Method stopped after {epoch} epochs')
@@ -111,6 +129,13 @@ class LSTMregressor:
             ypred = self.model(X)
             ypred = ypred.detach().cpu().numpy()
             return ypred
+
+
+class LSTMRegressor(NeuralRegressor):
+    def __init__(self, input_size, output_size, hidden_size, num_layers, bidirectional, lr=0.003, reg_strength=0.1):
+        model = LSTMModel(input_size, hidden_size=hidden_size, output_size=output_size,
+                           num_layers=num_layers, bidirectional=bidirectional)
+        super().__init__(model, lr=lr, reg_strength=reg_strength)
 
 
 class TheirBaseline:
