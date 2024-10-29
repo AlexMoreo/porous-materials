@@ -125,7 +125,7 @@ class NeuralRegressor:
     def predict(self, X):
         self.model.eval()
         with torch.no_grad():
-            X = torch.tensor(X, dtype=torch.float32).unsqueeze(1)
+            X = torch.tensor(X, dtype=torch.float32)
             ypred = self.model(X)
             ypred = ypred.detach().cpu().numpy()
             return ypred
