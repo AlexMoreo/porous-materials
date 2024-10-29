@@ -47,8 +47,9 @@ def methods():
     #yield 'lstm-32-1', LSTMregressor(hidden_size=32, num_layers=1)
     yield 'lstm-256-4', LSTMRegressor(input_size, output_size, hidden_size=256, num_layers=4, bidirectional=True)
     yield 'ff-128-256', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256]))
+    yield 'ff-128-128-128-r02', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,128,128]), reg_strength=0.2)
     # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
-    yield 'RF', RandomForestRegressor()
+    #yield 'RF', RandomForestRegressor()
 
 table = Table('mse')
 table_path = '../results/tables/mse.pdf'
