@@ -51,7 +51,7 @@ class LSTMModel(nn.Module):
 
 
 class FFModel(nn.Module):
-    def __init__(self, input_size, output_size, hidden_sizes, activation=nn.ReLU):
+    def __init__(self, input_size, output_size, hidden_sizes, activation=nn.ReLU, smooth_length=5):
         """
         Parameters:
         - input_size (int): Number of input features.
@@ -71,8 +71,15 @@ class FFModel(nn.Module):
         layers.append(nn.Linear(in_features, output_size))
         self.network = nn.Sequential(*layers)
 
+        self.smooth_layer = nn.Conv1d(1, 1, kernel_size=smooth_length, padding='same', bias=False)
+        self.smooth_layer.weight.data.fill_(1 / smooth_length)
+
     def forward(self, x):
-        return self.network(x)
+        output = self.network(x)
+        # smoothing
+        output = output.unsqueeze(1)
+        smoothed_output = self.smooth_layer(output)
+        return smoothed_output.squeeze(1)
 
 
 class NeuralRegressor:
