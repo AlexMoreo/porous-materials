@@ -36,7 +36,7 @@ def methods():
     # yield 'ff-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,128], smooth_length=3), reg_strength=0.1)
     # yield 'ff-128-128-r01-mono', NeuralRegressor(MonotonicNN(input_size, output_size, hidden_sizes=[128, 128], smooth_length=0), reg_strength=0.01, lr=0.001)
     # yield 'ff-128-256-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128], smooth_length=3), reg_strength=0.1)
-    yield 'transformer', NeuralRegressor(TransformerRegressor(input_dim=1, output_dim=output_size, seq_len=input_size), clip=False, reg_strength=0.001)
+    yield 'transformer-fino', NeuralRegressor(TransformerRegressor(input_dim=1, output_dim=output_size, seq_len=input_size), clip=True, reg_strength=0, lr=0.001)
 
  # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
     #yield 'RF', RandomForestRegressor()

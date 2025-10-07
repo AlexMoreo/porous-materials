@@ -82,7 +82,8 @@ class NeuralRegressor:
             optimizer.zero_grad()
             outputs = self.model(X_tensor)
             if self.clip:
-                outputs = F.sigmoid(outputs)
+                # outputs = F.sigmoid(outputs)
+                outputs = 1-F.relu(1-outputs)
             loss = criterion(outputs, y_tensor) + self.reg_strength * self.jaggedness(outputs)
             loss.backward()
             optimizer.step()
