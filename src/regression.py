@@ -36,11 +36,12 @@ class StackRegressor:
 
 
 class NeuralRegressor:
-    def __init__(self, model, lr=0.003, reg_strength=0.1, cuda=True):
+    def __init__(self, model, lr=0.003, reg_strength=0.1, clip=None, cuda=True):
         self.model = model
-        self.cuda = cuda
         self.lr = lr
         self.reg_strength = reg_strength
+        self.clip = clip
+        self.cuda = cuda
 
         if cuda:
             self.model.cuda()
@@ -80,6 +81,8 @@ class NeuralRegressor:
             self.model.train()
             optimizer.zero_grad()
             outputs = self.model(X_tensor)
+            if self.clip:
+                outputs = F.sigmoid(outputs)
             loss = criterion(outputs, y_tensor) + self.reg_strength * self.jaggedness(outputs)
             loss.backward()
             optimizer.step()
