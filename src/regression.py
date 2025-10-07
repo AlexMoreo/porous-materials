@@ -116,6 +116,8 @@ class NeuralRegressor:
             if self.cuda:
                 X = X.cuda()
             ypred = self.model(X)
+            if self.clip:
+                ypred = torch.clamp(ypred, min=0.0, max=1.0)
             ypred = ypred.detach().cpu().numpy()
             return ypred
 
