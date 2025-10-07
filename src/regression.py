@@ -68,7 +68,7 @@ class NeuralRegressor:
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
         num_epochs = 100000
-        PATIENCE = 1000
+        PATIENCE = 5000
         val_loss = np.inf
         patience = PATIENCE
         epoch = 0
