@@ -1,6 +1,7 @@
 import os.path
 import pickle
 from collections import defaultdict
+from ossaudiodev import error
 
 import numpy as np
 from PIL.ImageOps import scale
@@ -10,39 +11,53 @@ from sklearn.svm import LinearSVR
 from sklearn.model_selection import LeaveOneOut
 
 from data import *
-from regression import StackRegressor, NeuralRegressor, PrecomputedBaseline
-from nn_modules import FFModel, MonotonicNN, LSTMModel, TransformerRegressor
+from regression import StackRegressor, NeuralRegressor, PrecomputedBaseline, LSTMRegressor
+from nn_modules import FFModel, MonotonicNN
 from sklearn.ensemble import RandomForestRegressor
 
 from result_table.src.table import Table
 from utils import *
 from pathlib import Path
 
-gas='nitrogen'
-# gas='hydrogen'
 
-path = f'../data/training/dataset_for_{gas}.csv'
-y, X = load_data(path, cumulate_x=True, normalize=True)
+X, y, in_axis, out_axis, scales, filenames = load_all_data__depr('../data/training_set', normalize_out=False)
+
+standardize_input = False
+no_accum_y = False
+ignore_last_column_X = True
+
+
+if ignore_last_column_X:
+    X = X[:, :-1]
+    in_axis = in_axis[:-1]
+
+
+def remove_accum(y):
+    y = np.copy(y)
+    y[:, 1:] -= y[:,:-1]
+    return y
+
 
 def methods():
     input_size = X.shape[1]
     output_size = y.shape[1]
+    yield 'their', PrecomputedBaseline(filenames[test[0]], scale=test_scale)
     # yield 'SVR', MultiOutputRegressor(LinearSVR())
     # yield 'StackSVR', StackRegressor()
-    # yield 'lstm-256-4', NeuralRegressor(model=LSTMModel(input_size, output_size))
+    #yield 'lstm-32-1', LSTMregressor(hidden_size=32, num_layers=1)
+    yield 'lstm-256-4', LSTMRegressor(input_size, output_size, hidden_size=256, num_layers=4, bidirectional=True)
     # yield 'ff-128-256', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256]))
-    # yield 'ff-128-256-128-r02', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128]), reg_strength=0.1)
+    yield 'ff-128-256-128-r02', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128]), reg_strength=0.1)
     # yield 'ff-256-256-256-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[256,256,256,128,128]), reg_strength=0.1)
-    # yield 'ff-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,128], smooth_length=3), reg_strength=0.1)
-    # yield 'ff-128-128-r01-mono', NeuralRegressor(MonotonicNN(input_size, output_size, hidden_sizes=[128, 128], smooth_length=0), reg_strength=0.01, lr=0.001)
-    # yield 'ff-128-256-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128], smooth_length=3), reg_strength=0.1)
-    yield 'transformer', NeuralRegressor(TransformerRegressor(input_dim=1, output_dim=output_size, seq_len=input_size))
+    yield 'ff-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,128], smooth_length=3), reg_strength=0.1)
+    yield 'ff-128-128-r01-mono', NeuralRegressor(MonotonicNN(input_size, output_size, hidden_sizes=[64,128], smooth_length=0), reg_strength=0.0, lr=0.00001)
+    yield 'ff-128-256-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128], smooth_length=3), reg_strength=0.1)
 
  # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
     #yield 'RF', RandomForestRegressor()
 
 table = Table('mse')
-table_path = f'../results/tables/mse_{gas}.pdf'
+table_path = '../results/tables/mse.pdf'
 table.format.show_std = False
 table.format.mean_prec = 1
 table.format.stat_test = None
@@ -51,23 +66,31 @@ ansia = True
 errors = defaultdict(lambda :[])
 test_names = []
 
-standardize_input = False
-
 loo = LeaveOneOut()
 for i, (train, test) in enumerate(loo.split(X, y)):
     Xtr, ytr = X[train], y[train]
     Xte, yte = X[test], y[test]
-    test_name = f'model{i+1}'
+    test_name = filenames[test[0]]
+    test_name = test_name.replace('_', ', ')
+    test_name = test_name.replace('mu', '$\mu$')
+    test_name = test_name.replace('sigma', '$\sigma$')
+    test_name = test_name.replace('.csv', '')
 
     if standardize_input:
         zscorer = StandardScaler()
         Xtr = zscorer.fit_transform(Xtr)
         Xte = zscorer.transform(Xte)
 
+    if no_accum_y:
+        ytr = remove_accum(ytr)
+        yte = remove_accum(yte)
+
+    test_scale = scales[test[0]]
+
     for method, reg in methods():
-        # reg.cuda()
+        method.cuda()
         show_table = False
-        method_results_path = f'../results/errors/{method}_{gas}.pkl'
+        method_results_path = f'../results/errors/{method}.pkl'
         if os.path.exists(method_results_path):
             method_errors = pickle.load(open(method_results_path, 'rb'))
         else:
@@ -78,11 +101,17 @@ for i, (train, test) in enumerate(loo.split(X, y)):
             reg.fit(Xtr, ytr)
             yte_pred = reg.predict(Xte)
 
-            plot_result(yte[0], yte_pred[0], f'../results/plots/{method}/{str(test_name)}.png', err_fun=mse)
+            if no_accum_y:
+                yte = np.cumsum(yte, axis=1)
+                yte_pred = np.cumsum(yte_pred, axis=1)
+
+            yte_pred *= test_scale
+            yte *= test_scale
+
+            plot_result__depr(out_axis, yte[0], yte_pred[0], f'../results/plots/{method}/{filenames[test[0]]}.png', err_fun=mse)
 
             error_mean = mse(yte, yte_pred)
             method_errors[test_name] = error_mean
-            pickle.dump(method_errors, open(method_results_path, 'wb'), pickle.HIGHEST_PROTOCOL)
             if ansia:
                 show_table = True
         else:
@@ -90,10 +119,13 @@ for i, (train, test) in enumerate(loo.split(X, y)):
 
         errors[method].append(error_mean)
 
+        pickle.dump(method_errors, open(method_results_path, 'wb'), pickle.HIGHEST_PROTOCOL)
+
         table.add(benchmark=test_name, method=method, v=error_mean)
         if show_table:
             table.latexPDF(table_path, resizebox=True)
 
+    filenames.append(test_name)
     print(test_name)
 
 method_replace={'their': 'RFbaseline'}
