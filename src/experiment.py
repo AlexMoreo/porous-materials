@@ -11,7 +11,7 @@ from sklearn.svm import LinearSVR
 from sklearn.model_selection import LeaveOneOut
 
 from data import *
-from methods import StackRegressor, NeuralRegressor, TheirBaseline, LSTMRegressor, FFModel
+from methods import StackRegressor, NeuralRegressor, TheirBaseline, LSTMRegressor, FFModel, MonotonicNN
 from sklearn.ensemble import RandomForestRegressor
 
 from result_table.src.table import Table
@@ -44,11 +44,12 @@ def methods():
     # yield 'SVR', MultiOutputRegressor(LinearSVR())
     # yield 'StackSVR', StackRegressor()
     #yield 'lstm-32-1', LSTMregressor(hidden_size=32, num_layers=1)
-    # yield 'lstm-256-4', LSTMRegressor(input_size, output_size, hidden_size=256, num_layers=4, bidirectional=True)
+    yield 'lstm-256-4', LSTMRegressor(input_size, output_size, hidden_size=256, num_layers=4, bidirectional=True)
     # yield 'ff-128-256', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256]))
     yield 'ff-128-256-128-r02', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128]), reg_strength=0.1)
-    yield 'ff-256-256-256-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[256,256,256,128,128]), reg_strength=0.1)   
+    # yield 'ff-256-256-256-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[256,256,256,128,128]), reg_strength=0.1)
     yield 'ff-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,128], smooth_length=3), reg_strength=0.1)
+    yield 'ff-128-128-r01-mono', NeuralRegressor(MonotonicNN(input_size, output_size, hidden_sizes=[64,128], smooth_length=0), reg_strength=0.0, lr=0.00001)
     yield 'ff-128-256-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128], smooth_length=3), reg_strength=0.1)
 
  # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
@@ -86,6 +87,7 @@ for i, (train, test) in enumerate(loo.split(X, y)):
     test_scale = scales[test[0]]
 
     for method, reg in methods():
+        method.cuda()
         show_table = False
         method_results_path = f'../results/errors/{method}.pkl'
         if os.path.exists(method_results_path):
@@ -125,6 +127,7 @@ for i, (train, test) in enumerate(loo.split(X, y)):
     filenames.append(test_name)
     print(test_name)
 
-table.latexPDF(table_path, benchmark_order=sorted(table.benchmarks), verbose=False, resizebox=False)
+method_replace={'their': 'RFbaseline'}
+table.latexPDF(table_path, benchmark_order=sorted(table.benchmarks), verbose=False, resizebox=False, method_replace=method_replace)
 for method, errors_means in errors.items():
     print(f'{method}\tMSE={np.mean(errors_means):.10f}+-{np.std(errors_means):.10f}')

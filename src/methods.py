@@ -8,6 +8,7 @@ from sklearn.svm import LinearSVR
 import torch
 from torch import nn, optim
 from os.path import join
+import torch.nn.functional as F
 
 
 class StackRegressor:
@@ -71,16 +72,32 @@ class FFModel(nn.Module):
         layers.append(nn.Linear(in_features, output_size))
         self.network = nn.Sequential(*layers)
 
-        self.smooth_layer = nn.Conv1d(1, 1, kernel_size=smooth_length, padding='same', bias=False)
-        self.smooth_layer.weight.data.fill_(1 / smooth_length)
+        self.smooth_length=smooth_length
+
+        if smooth_length>0:
+            self.smooth_layer = nn.Conv1d(1, 1, kernel_size=smooth_length, padding='same', bias=False)
+            self.smooth_layer.weight.data.fill_(1 / smooth_length)
 
     def forward(self, x):
         output = self.network(x)
         # smoothing
-        output = output.unsqueeze(1)
-        smoothed_output = self.smooth_layer(output)
-        return smoothed_output.squeeze(1)
+        if self.smooth_length > 0:
+            output = output.unsqueeze(1)
+            output = self.smooth_layer(output)
+            output = output.squeeze(1)
+        return output
 
+
+class MonotonicNN(FFModel):
+    def __init__(self, input_size, output_size, hidden_sizes, activation=nn.ReLU, smooth_length=5):
+        super(MonotonicNN, self).__init__(input_size, output_size, hidden_sizes, activation, smooth_length)
+
+    def forward(self, x):
+        increments = self.network(x)  # Predicts increments only
+        increments = F.relu(increments)
+        # increments = F.sigmoid(increments)
+        cumulative = torch.cumsum(increments, dim=1)  # guarantees monotonicity
+        return cumulative
 
 class NeuralRegressor:
     def __init__(self, model, lr=0.003, reg_strength=0.1):
@@ -102,8 +119,8 @@ class NeuralRegressor:
         criterion = nn.MSELoss()
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
-        num_epochs = 5000
-        PATIENCE = 100
+        num_epochs = 10000
+        PATIENCE = 1000
         val_loss = np.inf
         patience = PATIENCE
 
@@ -121,7 +138,7 @@ class NeuralRegressor:
             else:
                 patience-=1
 
-            if True or epoch%100==0:
+            if epoch%100==0:
                 print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.10f}')
             if patience<=0:
                 print(f'Method stopped after {epoch} epochs')
