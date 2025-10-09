@@ -66,10 +66,29 @@ def mse(out_true, out_pred):
     return np.mean((out_true-out_pred)**2)
 
 
-def load_errors_file(method_results_path):
-    if os.path.exists(method_results_path):
-        method_errors = pickle.load(open(method_results_path, 'rb'))
-    else:
-        os.makedirs(Path(method_results_path).parent, exist_ok=True)
-        method_errors = {}
-    return method_errors
+class ResultTracker:
+    # keeps track of results with disc persistency
+    def __init__(self, path):
+        self.path = path
+        self.results = self.__load_errors_file()
+
+    def update(self, target, value):
+        self.results[target] = value
+        self.__dump()
+
+    def __load_errors_file(self):
+        if os.path.exists(self.path):
+            results = pickle.load(open(self.path, 'rb'))
+        else:
+            os.makedirs(Path(self.path).parent, exist_ok=True)
+            results = {}
+        return results
+
+    def __dump(self):
+        pickle.dump(self.results, open(self.path, 'wb'), pickle.HIGHEST_PROTOCOL)
+
+    def get(self, target):
+        return self.results[target]
+
+    def __contains__(self, target):
+        return target in self.results
