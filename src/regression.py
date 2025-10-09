@@ -68,9 +68,9 @@ class NeuralRegressor:
         criterion = nn.MSELoss()
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
-        num_epochs = 100000
+        num_epochs = np.inf
         PATIENCE = 5000
-        val_loss = np.inf
+        best_loss = np.inf
         patience = PATIENCE
         epoch = 0
 
@@ -88,17 +88,20 @@ class NeuralRegressor:
             loss.backward()
             optimizer.step()
 
-            if loss < val_loss:
-                val_loss=loss.item()
+            if loss < best_loss:
+                best_loss=loss.item()
                 patience=PATIENCE
                 # save best model
                 torch.save(self.model.state_dict(), best_model_path)
             else:
                 patience-=1
 
-            print(f'\rEpoch [{epoch + 1:05d}/{num_epochs}, P={patience:04d}], Loss: {loss.item():.10f}, Best loss: {val_loss:.10f}', end='', flush=True)
+            print(f'\rEpoch [{epoch + 1:05d}{"" if num_epochs==np.inf else f"/{num_epochs}"}, '
+                  f'P={patience:04d}], '
+                  f'Loss: {loss.item():.10f}, '
+                  f'Best loss: {best_loss:.10f}', end='', flush=True)
             if patience<=0:
-                print(f'Method stopped after {epoch} epochs')
+                print(f'\nMethod stopped after {epoch} epochs')
                 break
             epoch+=1
 
@@ -106,6 +109,7 @@ class NeuralRegressor:
 
         # Load the best model weights before returning
         self.model.load_state_dict(torch.load(best_model_path))
+        self.best_loss = best_loss
 
         return self
 

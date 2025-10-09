@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+import math
 
 
 class LSTMModel(nn.Module):
@@ -55,18 +56,17 @@ class FFModel(nn.Module):
         return output
 
 
-class MonotonicNN(FFModel):
-    def __init__(self, input_size, output_size, hidden_sizes, activation=nn.ReLU, smooth_length=5):
-        super(MonotonicNN, self).__init__(input_size, output_size, hidden_sizes, activation, smooth_length)
+class MonotonicNN(nn.Module):
+    def __init__(self, module: nn.Module):
+        super(MonotonicNN, self).__init__()
+        self.module = module
 
     def forward(self, x):
-        increments = self.network(x)  # Predicts increments only
+        increments = self.module(x)  # Predicts increments only
         increments = F.relu(increments)
         cumulative = torch.cumsum(increments, dim=1)  # guarantees monotonicity
         return cumulative
 
-
-import math
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=1000):
@@ -89,7 +89,7 @@ class PositionalEncoding(nn.Module):
 
 
 class TransformerRegressor(nn.Module):
-    def __init__(self, input_dim, output_dim, seq_len,
+    def __init__(self, input_size, output_size,
                  d_model=128, nhead=8, num_layers=3,
                  dim_feedforward=256, dropout=0.1):
         super().__init__()
@@ -98,7 +98,7 @@ class TransformerRegressor(nn.Module):
         self.input_proj = nn.Linear(1, d_model)
 
         # Positional encoding to provide order information
-        self.positional_encoding = PositionalEncoding(d_model, dropout, max_len=seq_len)
+        self.positional_encoding = PositionalEncoding(d_model, dropout, max_len=input_size)
 
         # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
@@ -111,7 +111,7 @@ class TransformerRegressor(nn.Module):
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
         # Pool the sequence and map to the desired output dimension
-        self.output_proj = nn.Linear(d_model, output_dim)
+        self.output_proj = nn.Linear(d_model, output_size)
 
     def forward(self, x):
         # x: (batch, n_features)

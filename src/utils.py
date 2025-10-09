@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
+import os
 from os import makedirs
+import pickle
 
 def plot_result(out_true, out_pred, savefig=None, err_fun=None):
     plt.cla()
@@ -26,7 +28,7 @@ def plot_result(out_true, out_pred, savefig=None, err_fun=None):
     if savefig:
         makedirs(Path(savefig).parent, exist_ok=True)
         plt.savefig(savefig)
-        print(f"plot save at: {savefig}")
+        # print(f"plot save at: {savefig}")
     else:
         plt.show()
     plt.close()
@@ -62,3 +64,12 @@ def plot_result__depr(out_axis, out_true, out_pred, savefig=None, err_fun=None):
 
 def mse(out_true, out_pred):
     return np.mean((out_true-out_pred)**2)
+
+
+def load_errors_file(method_results_path):
+    if os.path.exists(method_results_path):
+        method_errors = pickle.load(open(method_results_path, 'rb'))
+    else:
+        os.makedirs(Path(method_results_path).parent, exist_ok=True)
+        method_errors = {}
+    return method_errors
