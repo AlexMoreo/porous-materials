@@ -72,8 +72,8 @@ def methods():
     # yield 'ff-128-256-128-mono', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[128, 256, 128])), clip=True)
     # yield 'ff-128-256-128-mono-smooth', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[128, 256, 128])), clip=True, reg_strength=0.01)
     # yield 'ff-64-64-mono', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[64, 64])), clip=True)
-    yield f'ff-16-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[16]), clip=False, reg_strength=0, lr=0.001)
-    yield f'ff-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32]), clip=False, reg_strength=0, lr=0.001)
+    yield f'ff-16-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[16]), clip=False, reg_strength=0, lr=0.01)
+    yield f'ff-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32]), clip=False, reg_strength=0, lr=0.01)
     yield f'ff-32-64-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32,64,32]),
                                                     clip=False, reg_strength=0, lr=0.001)
     yield f'ff-64-128-128-64-PCA{components}', NeuralRegressor(
@@ -160,15 +160,17 @@ for i, (train, test) in enumerate(loo.split(X, y)):
 
             if reduce_input:
                 yte_pred = pca.inverse_transform(yte_pred)
-                yte = pca.inverse_transform(yte)
+                yte_ = pca.inverse_transform(yte)
+            else:
+                yte_ = yte
 
             if hasattr(reg, 'best_loss'):
                 method_convergence.update(test_name, reg.best_loss)
 
-            error_mean = mse(yte, yte_pred)
+            error_mean = mse(yte_, yte_pred)
             method_errors.update(test_name, error_mean)
 
-            plot_result(yte[0], yte_pred[0], f'../results{suffix}/plots/{gas}/{method}/{str(test_name)}.png', err_fun=mse)
+            plot_result(yte_[0], yte_pred[0], f'../results{suffix}/plots/{gas}/{method}/{str(test_name)}.png', err_fun=mse)
         else:
             error_mean = method_errors.get(test_name)
 
