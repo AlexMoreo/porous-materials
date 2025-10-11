@@ -1,33 +1,46 @@
 import numpy as np
-from sklearn.model_selection import LeaveOneOut
+from sklearn.model_selection import LeaveOneOut, KFold
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.svm import LinearSVR
 import torch
 from torch import nn, optim
 from os.path import join
 import torch.nn.functional as F
-
+from sklearn.base import clone
 
 
 class StackRegressor:
 
-    def __init__(self):
-        self.first_tier = MultiOutputRegressor(LinearSVR())
-        self.second_tier = MultiOutputRegressor(LinearSVR())
+    def __init__(self, regressor=LinearSVR(), mode='tat', k=5):
+        self.first_tier = MultiOutputRegressor(clone(regressor))
+        self.second_tier = MultiOutputRegressor(clone(regressor))
+        self.mode = mode
+        self.k = k
+        assert mode in ['tat', 'loo', 'kfcv'], 'wrong mode'
 
     def fit(self, X, y):
-        loo = LeaveOneOut()
-        Z = []
-        for train, test in loo.split(X, y):
-            Xtr, ytr = X[train], y[train]
-            Xte, yte = X[test], y[test]
+        if self.mode in ['loo', 'kfcv']:
+            if self.mode == 'loo':
+                cv = LeaveOneOut()
+            elif self.mode == 'kfcv':
+                cv = KFold(n_splits=self.k)
+            Z = []
+            for train, test in cv.split(X, y):
+                Xtr, ytr = X[train], y[train]
+                Xte, yte = X[test], y[test]
 
-            self.first_tier.fit(Xtr, ytr)
-            yte_pred = self.first_tier.predict(Xte)
-            Z.append(yte_pred[0])
+                self.first_tier.fit(Xtr, ytr)
+                yte_pred = self.first_tier.predict(Xte)
+                Z.append(yte_pred)
 
-        self.first_tier.fit(X, y)
-        self.second_tier.fit(Z, y)
+            Z = np.vstack(Z)
+            self.first_tier.fit(X, y)
+            self.second_tier.fit(Z, y)
+        elif self.mode == 'tat':
+            self.first_tier.fit(X, y)
+            Z = self.first_tier.predict(X)
+            self.second_tier.fit(Z,y)
+
 
     def predict(self, X):
         Z = self.first_tier.predict(X)
@@ -84,7 +97,9 @@ class NeuralRegressor:
             if self.clip:
                 # outputs = F.sigmoid(outputs)
                 outputs = 1-F.relu(1-outputs)
-            loss = criterion(outputs, y_tensor) + self.reg_strength * self.jaggedness(outputs)
+            loss = criterion(outputs, y_tensor)
+            if self.reg_strength>0:
+                loss += self.reg_strength * self.jaggedness(outputs)
             loss.backward()
             optimizer.step()
 
