@@ -145,8 +145,10 @@ for i, (train, test) in enumerate(loo.split(X, y)):
 
     if reduce_input:
         pca = PCA(n_components=components)
-        ytr = pca.fit_transform(ytr)
-        yte = pca.transform(yte)
+        ytr_ = pca.fit_transform(ytr)
+        yte_ = pca.transform(yte)
+    else:
+        yte_ = yte
 
     for method, reg in methods():
         print(f'{method=}')
@@ -155,22 +157,19 @@ for i, (train, test) in enumerate(loo.split(X, y)):
         method_convergence = ResultTracker(f'../results{suffix}/convergence/{gas}/{method}.pkl')
 
         if test_name not in method_errors or force:
-            reg.fit(Xtr, ytr)
+            reg.fit(Xtr, ytr_)
             yte_pred = reg.predict(Xte)
 
             if reduce_input:
                 yte_pred = pca.inverse_transform(yte_pred)
-                yte_ = pca.inverse_transform(yte)
-            else:
-                yte_ = yte
 
             if hasattr(reg, 'best_loss'):
                 method_convergence.update(test_name, reg.best_loss)
 
-            error_mean = mse(yte_, yte_pred)
+            error_mean = mse(yte, yte_pred)
             method_errors.update(test_name, error_mean)
 
-            plot_result(yte_[0], yte_pred[0], f'../results{suffix}/plots/{gas}/{method}/{str(test_name)}.png', err_fun=mse)
+            plot_result(yte[0], yte_pred[0], f'../results{suffix}/plots/{gas}/{method}/{str(test_name)}.png', err_fun=mse)
         else:
             error_mean = method_errors.get(test_name)
 
