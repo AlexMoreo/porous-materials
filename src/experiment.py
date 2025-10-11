@@ -39,7 +39,7 @@ X, y = load_data(path, cumulate_x=True, normalize=True)
 if problem == 'inverse':
     X, y = y, X
 
-lr=0.01
+lr=0.005
 
 def methods():
     input_size = X.shape[1]
@@ -75,7 +75,7 @@ def methods():
     # yield 'ff-128-256-128-mono-smooth', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[128, 256, 128])), clip=True, reg_strength=0.01)
     # yield 'ff-64-64-mono', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[64, 64])), clip=True)
     #yield f'ff-16-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[16]), clip=False, reg_strength=0, lr=lr)
-    yield f'ff-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32]), clip=False, reg_strength=0, lr=lr)
+    #yield f'ff-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32]), clip=False, reg_strength=0, lr=lr)
     yield f'ff-32-64-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32,64,32]), clip=False, reg_strength=0, lr=lr)
     yield f'ff-64-128-128-64-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[64, 128, 128, 64]), clip=False, reg_strength=0, lr=lr)
     # yield 'ff-128-256-512-512-256-128-mono', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[128,256,512,512,256,128])), clip=True)
@@ -96,7 +96,7 @@ def methods():
     # )
     # yield 'transformer-2L-noreg', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=2), clip=True, reg_strength=0)
     # yield 'transformer-1L', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=1), clip=True)
-    yield f'transformer-1L-PCA{components}', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=1), clip=True, reg_strength=0, lr=lr)
+    yield f'transformer-1L-PCA{components}', NeuralRegressor(TransformerRegressor(input_size, output_size=components, num_layers=1), clip=True, reg_strength=0, lr=lr)
     # yield 'transformer-1L-noreg', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=1), clip=True, reg_strength=0)
     # yield 'transformer-1L-small', NeuralRegressor(
     #     TransformerRegressor(input_size, output_size, num_layers=1, d_model=64, nhead=4, dim_feedforward=64,
