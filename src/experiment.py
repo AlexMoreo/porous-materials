@@ -97,6 +97,7 @@ def methods():
     # yield 'transformer-2L-noreg', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=2), clip=True, reg_strength=0)
     # yield 'transformer-1L', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=1), clip=True)
     yield f'transformer-1L-PCA{components}', NeuralRegressor(TransformerRegressor(input_size, output_size=components, num_layers=1), clip=True, reg_strength=0, lr=lr)
+    yield f'transformer-2L-PCA{components}', NeuralRegressor(TransformerRegressor(input_size, output_size=components, num_layers=2), clip=True, reg_strength=0, lr=lr)
     # yield 'transformer-1L-noreg', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=1), clip=True, reg_strength=0)
     # yield 'transformer-1L-small', NeuralRegressor(
     #     TransformerRegressor(input_size, output_size, num_layers=1, d_model=64, nhead=4, dim_feedforward=64,
