@@ -22,19 +22,21 @@ from pathlib import Path
 gas='nitrogen'
 # gas='hydrogen'
 
-# problem = 'direct'
-problem = 'inverse'
+problem = 'direct'
+# problem = 'inverse'
 assert problem in ['direct', 'inverse'], 'wrong problem'
+problemtag = '-direct'
 
-components=8
+components=15
 
 path = f'../data/training/dataset_for_{gas}.csv'
 X, y = load_data(path, cumulate_x=True, normalize=True)
 
 if problem == 'inverse':
     X, y = y, X
+    problemtag=''
 
-standardize_output = True
+standardize_output = False
 
 loo = LeaveOneOut()
 for i, (train, test) in enumerate(loo.split(X, y)):
@@ -59,4 +61,6 @@ for i, (train, test) in enumerate(loo.split(X, y)):
         yte_ = zscorer.inverse_transform(yte_)
 
     suffix="-zscore" if standardize_output else ""
-    plot_result(yte[0], yte_[0], f'../reconstruction/{gas}/PCA{components}{suffix}/{str(test_name)}.png', err_fun=mse)
+    plot_result(yte[0], yte_[0], f'../reconstruction/{gas}/PCA{components}{suffix}{problemtag}/{str(test_name)}.png', err_fun=mse)
+
+
