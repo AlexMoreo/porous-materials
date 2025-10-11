@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import numpy as np
 from PIL.ImageOps import scale
+from sklearn.decomposition import PCA
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVR, SVR
@@ -27,6 +28,9 @@ tests = 'all'
 # problem = 'direct'
 problem = 'inverse'
 assert problem in ['direct', 'inverse'], 'wrong problem'
+
+reduce_input = True
+components=5
 
 
 path = f'../data/training/dataset_for_{gas}.csv'
@@ -68,6 +72,13 @@ def methods():
     # yield 'ff-128-256-128-mono', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[128, 256, 128])), clip=True)
     # yield 'ff-128-256-128-mono-smooth', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[128, 256, 128])), clip=True, reg_strength=0.01)
     # yield 'ff-64-64-mono', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[64, 64])), clip=True)
+    yield f'ff-16-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[16]), clip=False, reg_strength=0, lr=0.001)
+    yield f'ff-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32]), clip=False, reg_strength=0, lr=0.001)
+    yield f'ff-32-64-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32,64,32]),
+                                                    clip=False, reg_strength=0, lr=0.001)
+    yield f'ff-64-128-128-64-PCA{components}', NeuralRegressor(
+        FFModel(input_size, output_size=components, hidden_sizes=[64, 128, 128, 64]),
+        clip=False, reg_strength=0, lr=0.001)
     # yield 'ff-128-256-512-512-256-128-mono', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[128,256,512,512,256,128])), clip=True)
     # yield 'ff-128-256-128-r02', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128]), reg_strength=0.1)
     # yield 'ff-256-256-256-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[256,256,256,128,128]), reg_strength=0.1)
@@ -84,19 +95,20 @@ def methods():
     # yield 'transformer-2L-big', NeuralRegressor(
     #     TransformerRegressor(input_size, output_size, num_layers=2, d_model=256, nhead=16, dim_feedforward=512, dropout=0.1), clip=True, reg_strength=0.001
     # )
-    yield 'transformer-2L-noreg', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=2), clip=True, reg_strength=0)
-    yield 'transformer-1L', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=1), clip=True)
-    yield 'transformer-1L-noreg', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=1), clip=True, reg_strength=0)
-    yield 'transformer-1L-small', NeuralRegressor(
-        TransformerRegressor(input_size, output_size, num_layers=1, d_model=64, nhead=4, dim_feedforward=64,
-                             dropout=0.5), clip=True, reg_strength=0.001
-    )
-    yield 'transformer-1L-big', NeuralRegressor(
-        TransformerRegressor(input_size, output_size, num_layers=1, d_model=256, nhead=16, dim_feedforward=512,
-                             dropout=0.1), clip=True, reg_strength=0.001
-    )
+    # yield 'transformer-2L-noreg', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=2), clip=True, reg_strength=0)
+    # yield 'transformer-1L', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=1), clip=True)
+    # yield 'transformer-1L-noreg', NeuralRegressor(TransformerRegressor(input_size, output_size, num_layers=1), clip=True, reg_strength=0)
+    # yield 'transformer-1L-small', NeuralRegressor(
+    #     TransformerRegressor(input_size, output_size, num_layers=1, d_model=64, nhead=4, dim_feedforward=64,
+    #                          dropout=0.5), clip=True, reg_strength=0.001
+    # )
+    # yield 'transformer-1L-big', NeuralRegressor(
+    #     TransformerRegressor(input_size, output_size, num_layers=1, d_model=256, nhead=16, dim_feedforward=512,
+    #                          dropout=0.1), clip=True, reg_strength=0.001
+    # )
     # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
-    yield 'RF', RandomForestRegressor()
+    # yield 'RF', RandomForestRegressor()
+    yield 'RF-pca', RandomForestRegressor()
 
 
 suffix = '-direct' if problem=='direct' else ''
@@ -112,6 +124,7 @@ errors = defaultdict(lambda :[])
 test_names = []
 
 standardize_input = False
+
 
 loo = LeaveOneOut()
 for i, (train, test) in enumerate(loo.split(X, y)):
@@ -130,6 +143,11 @@ for i, (train, test) in enumerate(loo.split(X, y)):
         Xtr = zscorer.fit_transform(Xtr)
         Xte = zscorer.transform(Xte)
 
+    if reduce_input:
+        pca = PCA(n_components=components)
+        ytr = pca.fit_transform(ytr)
+        yte = pca.transform(yte)
+
     for method, reg in methods():
         print(f'{method=}')
         show_table = False
@@ -139,6 +157,10 @@ for i, (train, test) in enumerate(loo.split(X, y)):
         if test_name not in method_errors or force:
             reg.fit(Xtr, ytr)
             yte_pred = reg.predict(Xte)
+
+            if reduce_input:
+                yte_pred = pca.inverse_transform(yte_pred)
+                yte = pca.inverse_transform(yte)
 
             if hasattr(reg, 'best_loss'):
                 method_convergence.update(test_name, reg.best_loss)
