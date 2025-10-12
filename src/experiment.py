@@ -160,6 +160,7 @@ for i, (train, test) in enumerate(loo.split(X, y)):
         Xtr_ = pca_in.fit_transform(Xtr)
         Xte_ = pca_in.transform(Xte)
     else:
+        Xtr_ = Xtr
         Xte_ = Xte
 
     for method, reg in methods():
