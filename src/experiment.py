@@ -79,6 +79,7 @@ def methods():
     #yield f'ff-32-64-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32,64,32]), clip=False, reg_strength=0, lr=lr)
     # yield f'ff-64-128-128-64-PCA{components_out}', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64]), clip=False, reg_strength=0, lr=lr)
     yield f'ff-64-128-128-64-PCA{components_out}-0', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0), clip=False, reg_strength=0, lr=lr)
+    yield f'ff-128-256-512-256-128-PCA{components_out}-0', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[128,256,512,256,128], smooth_length=0), clip=False, reg_strength=0, lr=lr)
     # yield f'ff-64-128-128-64-PCA{components_out}-PCAin{components_in}-0', NeuralRegressor(FFModel(input_size=components_in, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0), clip=False, reg_strength=0, lr=lr)
     # yield f'ff-64-128-128-64-PCA{components_out}-0-dr', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0, dropout=0.5), clip=False,reg_strength=0, lr=lr)
     # yield f'ff-64-128-128-64-PCA{components_out}-PCAin{components_in}-0-dr', NeuralRegressor(FFModel(input_size=components_in, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0, dropout=0.5), clip=False,reg_strength=0, lr=lr)
