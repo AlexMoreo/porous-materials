@@ -4,8 +4,8 @@ import os
 import numpy as np
 
 # --- Configura tus métodos y rutas base ---
-methods = ["RF", "ff-128-256-128", "ff-64-128-128-64-PCA8"]
-baseline_path = '../attachements_mail/results/reverse_from_N2'
+methods = ["RF", "ff-128-256-128", "ff-64-128-128-64-PCA12"]
+baseline_path = '../attachements/reverse_from_N2'
 methods_path  = '../results/plots/nitrogen'
 
 
