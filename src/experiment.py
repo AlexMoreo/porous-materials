@@ -30,7 +30,7 @@ problem = 'inverse'
 assert problem in ['direct', 'inverse'], 'wrong problem'
 
 components_out=12
-components_in=12
+components_in=None #12
 
 
 path = f'../data/training/dataset_for_{gas}.csv'
@@ -78,10 +78,10 @@ def methods():
     #yield f'ff-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32]), clip=False, reg_strength=0, lr=lr)
     #yield f'ff-32-64-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32,64,32]), clip=False, reg_strength=0, lr=lr)
     # yield f'ff-64-128-128-64-PCA{components_out}', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64]), clip=False, reg_strength=0, lr=lr)
-    # yield f'ff-64-128-128-64-PCA{components_out}-0', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0), clip=False, reg_strength=0, lr=lr)
-    yield f'ff-64-128-128-64-PCA{components_out}-PCAin{components_in}-0', NeuralRegressor(FFModel(input_size=components_in, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0), clip=False, reg_strength=0, lr=lr)
+    yield f'ff-64-128-128-64-PCA{components_out}-0', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0), clip=False, reg_strength=0, lr=lr)
+    # yield f'ff-64-128-128-64-PCA{components_out}-PCAin{components_in}-0', NeuralRegressor(FFModel(input_size=components_in, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0), clip=False, reg_strength=0, lr=lr)
     # yield f'ff-64-128-128-64-PCA{components_out}-0-dr', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0, dropout=0.5), clip=False,reg_strength=0, lr=lr)
-    yield f'ff-64-128-128-64-PCA{components_out}-PCAin{components_in}-0-dr', NeuralRegressor(FFModel(input_size=components_in, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0, dropout=0.5), clip=False,reg_strength=0, lr=lr)
+    # yield f'ff-64-128-128-64-PCA{components_out}-PCAin{components_in}-0-dr', NeuralRegressor(FFModel(input_size=components_in, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0, dropout=0.5), clip=False,reg_strength=0, lr=lr)
     # yield 'ff-128-256-512-512-256-128-mono', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[128,256,512,512,256,128])), clip=True)
     # yield 'ff-128-256-128-r02', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128]), reg_strength=0.1)
     # yield 'ff-256-256-256-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[256,256,256,128,128]), reg_strength=0.1)
@@ -113,7 +113,7 @@ def methods():
     # )
     # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
     # yield 'RF', RandomForestRegressor()
-    yield f'RF-PCA{components_out}-PCAin{components_in}', RandomForestRegressor()
+    # yield f'RF-PCA{components_out}-PCAin{components_in}', RandomForestRegressor()
 
 
 suffix = '-direct' if problem=='direct' else ''
