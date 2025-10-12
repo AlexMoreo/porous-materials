@@ -29,8 +29,8 @@ tests = 'all'
 problem = 'inverse'
 assert problem in ['direct', 'inverse'], 'wrong problem'
 
-reduce_input = True
-components=12
+components_out=12
+components_in=12
 
 
 path = f'../data/training/dataset_for_{gas}.csv'
@@ -77,7 +77,11 @@ def methods():
     #yield f'ff-16-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[16]), clip=False, reg_strength=0, lr=lr)
     #yield f'ff-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32]), clip=False, reg_strength=0, lr=lr)
     #yield f'ff-32-64-32-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[32,64,32]), clip=False, reg_strength=0, lr=lr)
-    yield f'ff-64-128-128-64-PCA{components}', NeuralRegressor(FFModel(input_size, output_size=components, hidden_sizes=[64, 128, 128, 64]), clip=False, reg_strength=0, lr=lr)
+    # yield f'ff-64-128-128-64-PCA{components_out}', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64]), clip=False, reg_strength=0, lr=lr)
+    yield f'ff-64-128-128-64-PCA{components_out}-0', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0), clip=False, reg_strength=0, lr=lr)
+    yield f'ff-64-128-128-64-PCA{components_out}-PCAin{components_in}-0', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0), clip=False, reg_strength=0, lr=lr)
+    yield f'ff-64-128-128-64-PCA{components_out}-0-dr', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0, dropout=0.5), clip=False,reg_strength=0, lr=lr)
+    yield f'ff-64-128-128-64-PCA{components_out}-PCAin{components_in}-0-dr', NeuralRegressor(FFModel(input_size, output_size=components_out, hidden_sizes=[64, 128, 128, 64], smooth_length=0, dropout=0.5), clip=False,reg_strength=0, lr=lr)
     # yield 'ff-128-256-512-512-256-128-mono', NeuralRegressor(MonotonicNN(FFModel(input_size, output_size, hidden_sizes=[128,256,512,512,256,128])), clip=True)
     # yield 'ff-128-256-128-r02', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[128,256,128]), reg_strength=0.1)
     # yield 'ff-256-256-256-128-128-r01', NeuralRegressor(FFModel(input_size, output_size, hidden_sizes=[256,256,256,128,128]), reg_strength=0.1)
@@ -109,7 +113,7 @@ def methods():
     # )
     # method, reg = 'lstm-256-4', LSTMregressor(hidden_size=256, num_layers=4)
     # yield 'RF', RandomForestRegressor()
-    yield f'RF-PCA{components}', RandomForestRegressor()
+    yield f'RF-PCA{components_out}-PCAin{components_in}', RandomForestRegressor()
 
 
 suffix = '-direct' if problem=='direct' else ''
@@ -124,7 +128,7 @@ ansia = False
 errors = defaultdict(lambda :[])
 test_names = []
 
-standardize_input = False
+# standardize_input = False
 
 
 loo = LeaveOneOut()
@@ -139,17 +143,24 @@ for i, (train, test) in enumerate(loo.split(X, y)):
 
     print(f'{test_name}:')
 
-    if standardize_input:
-        zscorer = StandardScaler()
-        Xtr = zscorer.fit_transform(Xtr)
-        Xte = zscorer.transform(Xte)
+    # if standardize_input:
+    #     zscorer = StandardScaler()
+    #     Xtr = zscorer.fit_transform(Xtr)
+    #     Xte = zscorer.transform(Xte)
 
-    if reduce_input:
-        pca = PCA(n_components=components)
-        ytr_ = pca.fit_transform(ytr)
-        yte_ = pca.transform(yte)
+    if components_out is not None:
+        pca_out = PCA(n_components=components_out)
+        ytr_ = pca_out.fit_transform(ytr)
+        yte_ = pca_out.transform(yte)
     else:
         yte_ = yte
+
+    if components_in is not None:
+        pca_in = PCA(n_components=components_in)
+        Xtr_ = pca_in.fit_transform(Xtr)
+        Xte_ = pca_in.transform(Xte)
+    else:
+        Xte_ = Xte
 
     for method, reg in methods():
         print(f'{method=}')
@@ -158,11 +169,11 @@ for i, (train, test) in enumerate(loo.split(X, y)):
         method_convergence = ResultTracker(f'../results{suffix}/convergence/{gas}/{method}.pkl')
 
         if test_name not in method_errors or force:
-            reg.fit(Xtr, ytr_)
-            yte_pred = reg.predict(Xte)
+            reg.fit(Xtr_, ytr_)
+            yte_pred = reg.predict(Xte_)
 
-            if reduce_input:
-                yte_pred = pca.inverse_transform(yte_pred)
+            if components_out is not None:
+                yte_pred = pca_out.inverse_transform(yte_pred)
 
             if hasattr(reg, 'best_loss'):
                 method_convergence.update(test_name, reg.best_loss)
