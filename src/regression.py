@@ -7,6 +7,35 @@ from torch import nn, optim
 from os.path import join
 import torch.nn.functional as F
 from sklearn.base import clone
+from sklearn.decomposition import PCA
+
+
+class PCAadapt:
+
+    def __init__(self, components, force=True):
+        self.n_components = components
+        self.force = force
+        self.pca = PCA(n_components=self.n_components)
+
+    def fit_transform(self, Z):
+        if Z.shape[1] > self.n_components:
+            Z = self.pca.fit_transform(Z)
+        elif self.force:
+            raise ValueError(f'requested PCA components={self.n_components} but input has {Z.shape[1]} dimensions')
+        return Z
+
+    def transform(self, Z):
+        if Z.shape[1] > self.n_components:
+            Z = self.pca.transform(Z)
+        elif self.force:
+            raise ValueError(f'requested PCA components={self.n_components} but input has {Z.shape[1]} dimensions')
+        return Z
+
+    def inverse_transform(self, Z):
+        if Z.shape[1] == self.n_components:
+            return self.pca.inverse_transform(Z)
+        else:
+            raise ValueError('inverse transform not understood')
 
 
 class StackRegressor:
@@ -48,16 +77,21 @@ class StackRegressor:
         return y_hat
 
 
-class NeuralRegressor:
-    def __init__(self, model, lr=0.003, reg_strength=0.1, clip=None, cuda=True):
+class NNReg:
+    def __init__(self, model, lr=0.003, reg_strength=0.1, clip=None, cuda=True, reduce_in=None, reduce_out=None):
         self.model = model
         self.lr = lr
         self.reg_strength = reg_strength
         self.clip = clip
         self.cuda = cuda
+        self.reduce_in = reduce_in
+        self.reduce_out = reduce_out
 
         if cuda:
             self.model.cuda()
+
+    # def __repr__(self):
+    #     f'NR({self.model})-lr{self.lr}-rs{self.reg_strength}'
 
     def jaggedness(self, output):
         # Define second-derivative kernel
@@ -71,6 +105,14 @@ class NeuralRegressor:
         return penalty
 
     def fit(self, X, y):
+
+        if self.reduce_in:
+            self.adapt_in = PCAadapt(components=self.reduce_in)
+            X = self.adapt_in.fit_transform(X)
+        if self.reduce_out:
+            self.adapt_out = PCAadapt(components=self.reduce_out)
+            y = self.adapt_out.fit_transform(y)
+
         X_tensor = torch.tensor(X, dtype=torch.float32)
         y_tensor = torch.tensor(y, dtype=torch.float32)
 
@@ -129,6 +171,9 @@ class NeuralRegressor:
         return self
 
     def predict(self, X):
+        if self.reduce_in:
+            X = self.adapt_in.transform(X)
+
         self.model.eval()
         with torch.no_grad():
             X = torch.tensor(X, dtype=torch.float32)
@@ -138,6 +183,8 @@ class NeuralRegressor:
             if self.clip:
                 ypred = torch.clamp(ypred, min=0.0, max=1.0)
             ypred = ypred.detach().cpu().numpy()
+            if self.reduce_out:
+                ypred = self.adapt_out.inverse_transform(ypred)
             return ypred
 
 

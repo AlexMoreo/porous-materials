@@ -1,66 +1,46 @@
-import os.path
-import pickle
-import warnings
-from collections import defaultdict
-
 import numpy as np
-from PIL.ImageOps import scale
 from sklearn.decomposition import PCA
-from sklearn.multioutput import MultiOutputRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import LinearSVR, SVR
 from sklearn.model_selection import LeaveOneOut, GridSearchCV
 from data import *
-from regression import StackRegressor, NeuralRegressor, PrecomputedBaseline
-from nn_modules import FFModel, MonotonicNN, LSTMModel, TransformerRegressor
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-
-from result_table.src.table import Table
 from utils import *
-from pathlib import Path
+from tqdm import tqdm
 
-gas='nitrogen'
-# gas='hydrogen'
+# reduce='input'  # 8 dimenions
+# reduce='nitrogen'
+reduce='hydrogen'
 
-problem = 'direct'
-# problem = 'inverse'
-assert problem in ['direct', 'inverse'], 'wrong problem'
-problemtag = '-direct'
+components=12
 
-components=15
+path_nitrogen = f'../data/training/dataset_for_nitrogen.csv'
+path_hydrogen = f'../data/training/dataset_for_hydrogen.csv'
 
-path = f'../data/training/dataset_for_{gas}.csv'
-X, y = load_data(path, cumulate_x=True, normalize=True)
+if reduce=='input':
+    X, _ = load_data(path_nitrogen, cumulate_x=True, normalize=True)
+    Z = X
+elif reduce=='nitrogen':
+    _, y = load_data(path_nitrogen, cumulate_x=True, normalize=True)
+    Z = y
+elif reduce=='hydrogen':
+    _, y = load_data(path_hydrogen, cumulate_x=True, normalize=True)
+    Z = y
 
-if problem == 'inverse':
-    X, y = y, X
-    problemtag=''
 
-standardize_output = False
-
+errors = []
 loo = LeaveOneOut()
-for i, (train, test) in enumerate(loo.split(X, y)):
+for i, (train, test) in tqdm(enumerate(loo.split(Z)), desc='generating reconstructions', total=len(Z)):
     test_name = f'model{i+1}'
-    print(f'{test_name}:')
 
-    ytr = y[train]
-    yte = y[test]
-
-    yte_ = yte.copy()
-    if standardize_output:
-        zscorer = StandardScaler()
-        ytr = zscorer.fit_transform(ytr)
-        yte_ = zscorer.transform(yte_)
+    Ztr = Z[train]
+    Zte = Z[test]
 
     pca = PCA(n_components=components)
-    ytr_ = pca.fit_transform(ytr)
-    yte_ = pca.transform(yte_)
+    pca.fit(Ztr)
+    Zte_ = pca.transform(Zte)
+    Zte_ = pca.inverse_transform(Zte_)
 
-    yte_ = pca.inverse_transform(yte_)
-    if standardize_output:
-        yte_ = zscorer.inverse_transform(yte_)
+    plot_result(Zte[0], Zte_[0], f'../reconstruction/{reduce}/PCA{components}/{str(test_name)}.png', err_fun=mse)
+    errors.append(mse(Zte[0], Zte_[0]))
 
-    suffix="-zscore" if standardize_output else ""
-    plot_result(yte[0], yte_[0], f'../reconstruction/{gas}/PCA{components}{suffix}{problemtag}/{str(test_name)}.png', err_fun=mse)
+print(f'Process ended. Reconstruction with {components=} has mse={np.mean(errors)}')
 
 

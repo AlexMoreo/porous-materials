@@ -19,8 +19,8 @@ class LSTMModel(nn.Module):
         return output
 
 
-class FFModel(nn.Module):
-    def __init__(self, input_size, output_size, hidden_sizes, activation=nn.ReLU, smooth_length=5, dropout=0):
+class FF(nn.Module):
+    def __init__(self, Xsize, ysize, hidden, activation=nn.ReLU, smooth_length=5, dropout=0):
         """
         Parameters:
         - input_size (int): Number of input features.
@@ -28,17 +28,17 @@ class FFModel(nn.Module):
         - output_size (int): Number of output units.
         - activation (nn.Module): Activation function to use (default: ReLU).
         """
-        super(FFModel, self).__init__()
+        super(FF, self).__init__()
 
         layers = []
-        in_features = input_size
-        for hidden_size in hidden_sizes:
+        in_features = Xsize
+        for hidden_size in hidden:
             layers.append(nn.Linear(in_features, hidden_size))
             layers.append(activation())
             layers.append(nn.Dropout(p=dropout))
             in_features = hidden_size
 
-        layers.append(nn.Linear(in_features, output_size))
+        layers.append(nn.Linear(in_features, ysize))
         self.network = nn.Sequential(*layers)
 
         self.smooth_length=smooth_length
