@@ -25,8 +25,8 @@ Vin_pca  = 8   # very good approximation (Vol)
 # RQ: better using Ldim>0 or not?
 
 
-hidden = [128,128,128]
-Ldim = 60
+hidden = [128,256,128]
+Ldim = 128
 
 # XYZ means 3way, and each signal is original
 # Xyz means 3way, but y and z is pca, X is original
