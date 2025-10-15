@@ -27,6 +27,13 @@ def methods():
         ),
         reduce_Z=Vin_pca,
         reduce_Y=Gout_pca
+    ),
+    yield 'R3-3L128-PCAZY8-dr', NN3WayReg(
+        model=FF3W(
+            Xdim=Gindim, Zdim=Vin_pca, Ydim=Gout_pca, Ldim=128, hidden=[64,128,256], dropout=0.05
+        ),
+        reduce_Z=Vin_pca,
+        reduce_Y=Gout_pca
     )
 
 path_h2 = '../data/training/dataset_for_hydrogen.csv'
