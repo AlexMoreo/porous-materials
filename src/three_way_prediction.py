@@ -10,9 +10,9 @@ from utils import mse, ResultTracker, plot_result
 
 
 def methods():
-    yield 'R3', NN3WayReg(
+    yield 'R3-3L128', NN3WayReg(
         model=FF3W(
-            Xdim=Gindim, Zdim=Vdim, Ydim=Goutdim, Ldim=0, hidden=[64]
+            Xdim=Gindim, Zdim=Vdim, Ydim=Goutdim, Ldim=128, hidden=[64,128,256]
         )
     )
 
@@ -26,6 +26,7 @@ errors = defaultdict(lambda :[])
 test_names = []
 
 selected_tests = list(np.arange(len(Vin))+1)  # default: all tests
+selected_tests = [1, 9, 17, 26, 34, 38, 48, 53, 62, 67, 73, 80, 89, 93, 105]
 
 loo = LeaveOneOut()
 for i, (train_idx, test_idx) in enumerate(loo.split(Vin, Gin, Gout)):
