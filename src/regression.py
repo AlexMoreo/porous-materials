@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from sklearn.model_selection import LeaveOneOut, KFold
 from sklearn.multioutput import MultiOutputRegressor
@@ -16,8 +18,12 @@ class PCAadapt:
         self.n_components = components
         self.force = force
         self.pca = PCA(n_components=self.n_components)
+        if force:
+            assert components is not None, 'components cannot be None if force=True'
 
     def fit_transform(self, Z):
+        if not self.force and self.n_components is None:
+            return Z
         if Z.shape[1] > self.n_components:
             Z = self.pca.fit_transform(Z)
         elif self.force:
@@ -25,6 +31,8 @@ class PCAadapt:
         return Z
 
     def transform(self, Z):
+        if not self.force and self.n_components is None:
+            return Z
         if Z.shape[1] > self.n_components:
             Z = self.pca.transform(Z)
         elif self.force:
@@ -32,6 +40,8 @@ class PCAadapt:
         return Z
 
     def inverse_transform(self, Z):
+        if not self.force and self.n_components is None:
+            return Z
         if Z.shape[1] == self.n_components:
             return self.pca.inverse_transform(Z)
         else:
@@ -133,7 +143,7 @@ class NNReg:
 
         #for epoch_ in range(num_epochs):
         while patience > 0:
-            self.model.train()
+            self.model.train_idx()
             optimizer.zero_grad()
             outputs = self.model(X_tensor)
             if self.clip:
@@ -187,6 +197,112 @@ class NNReg:
                 ypred = self.adapt_out.inverse_transform(ypred)
             return ypred
 
+
+class NN3WayReg:
+    def __init__(self, model, lr=0.003, reg_strength=0., clip=None, cuda=True,
+                 reduce_X=None, reduce_Y=None, reduce_Z=None, checkpoint_dir='../checkpoints', checkpoint_id=0):
+        self.model = model
+        self.lr = lr
+        self.reg_strength = reg_strength
+        self.clip = clip
+        self.cuda = cuda
+        self.adapt_X = PCAadapt(components=reduce_X, force=False)
+        self.adapt_Y = PCAadapt(components=reduce_Y, force=False)
+        self.adapt_Z = PCAadapt(components=reduce_Z, force=False)
+        self.checkpoint_dir = checkpoint_dir
+        self.checkpoint_id = checkpoint_id
+
+        if cuda:
+            self.model.cuda()
+            self.device = 'cuda'
+        else:
+            self.device = 'cpu'
+
+
+    def fit(self, X, Y, Z):
+
+        X = self.adapt_X.fit_transform(X)
+        Y = self.adapt_X.fit_transform(Y)
+        Z = self.adapt_X.fit_transform(Z)
+
+        X_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
+        Y_tensor = torch.tensor(Y, dtype=torch.float32, device=self.device)
+        Z_tensor = torch.tensor(Z, dtype=torch.float32, device=self.device)
+
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+
+        num_epochs = np.inf
+        PATIENCE = 5000
+        best_loss = np.inf
+        patience = PATIENCE
+        epoch = 0
+
+        # loss partial weights
+        wX, wZ, wY = 1, 1, 1
+
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        best_model_path = join(self.checkpoint_dir, f"best_model_{self.checkpoint_id}.pt")
+
+        #for epoch_ in range(num_epochs):
+        while patience > 0:
+            self.model.train()
+            optimizer.zero_grad()
+            X_recons, Z_recons, Y_predicted = self.model(X_tensor)
+            if self.clip:
+                Y_predicted = 1 - F.relu(1 - Y_predicted)
+
+            loss = wX*criterion(X_recons, X_tensor) + wZ*criterion(Z_recons, Z_tensor) + wY*criterion(Y_predicted, Y_tensor)
+
+            if self.reg_strength>0:
+                loss += self.reg_strength * self.jaggedness(Y_predicted)
+
+            loss.backward()
+            optimizer.step()
+
+            if loss < best_loss:
+                best_loss=loss.item()
+                patience=PATIENCE
+                # save best model
+                torch.save(self.model.state_dict(), best_model_path)
+            else:
+                patience-=1
+
+            print(f'\rEpoch [{epoch + 1:05d}{"" if num_epochs==np.inf else f"/{num_epochs}"}, '
+                  f'P={patience:04d}], '
+                  f'Loss: {loss.item():.10f}, '
+                  f'Best loss: {best_loss:.10f}', end='', flush=True)
+            if patience<=0:
+                print(f'\nMethod stopped after {epoch} epochs')
+                break
+            epoch+=1
+
+        print()
+
+        # Load the best model weights before returning
+        self.model.load_state_dict(torch.load(best_model_path))
+        self.best_loss = best_loss
+
+        return self
+
+    def predict(self, X, return_XZ=False):
+        X = self.adapt_X.transform(X)
+        self.model.eval()
+        with torch.no_grad():
+            X_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
+            X_recons, Z_recons, Y_predicted = self.model(X_tensor)
+            if self.clip:
+                ypred = torch.clamp(Y_predicted, min=0.0, max=1.0)
+            ypred = ypred.detach().cpu().numpy()
+            ypred = self.adapt_Y.inverse_transform(ypred)
+            if return_XZ:
+                X_recons = X_recons.detach().cpu().numpy()
+                X_recons = self.adapt_X.inverse_transform(X_recons)
+
+                Z_recons = Z_recons.detach().cpu().numpy()
+                Z_recons = self.adapt_Z.inverse_transform(Z_recons)
+                return ypred, X_recons, Z_recons
+            return ypred
 
 
 class PrecomputedBaseline:
