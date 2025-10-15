@@ -222,8 +222,8 @@ class NN3WayReg:
     def fit(self, X, Y, Z):
 
         X = self.adapt_X.fit_transform(X)
-        Y = self.adapt_X.fit_transform(Y)
-        Z = self.adapt_X.fit_transform(Z)
+        Y = self.adapt_Y.fit_transform(Y)
+        Z = self.adapt_Z.fit_transform(Z)
 
         X_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
         Y_tensor = torch.tensor(Y, dtype=torch.float32, device=self.device)
