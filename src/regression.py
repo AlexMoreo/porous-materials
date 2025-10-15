@@ -200,7 +200,9 @@ class NNReg:
 
 class NN3WayReg:
     def __init__(self, model, lr=0.003, reg_strength=0., clip=None, cuda=True,
-                 reduce_X=None, reduce_Y=None, reduce_Z=None, checkpoint_dir='../checkpoints', checkpoint_id=0):
+                 reduce_X=None, reduce_Y=None, reduce_Z=None,
+                 wX=1, wY=1, wZ=1,
+                 checkpoint_dir='../checkpoints', checkpoint_id=0):
         self.model = model
         self.lr = lr
         self.reg_strength = reg_strength
@@ -209,6 +211,10 @@ class NN3WayReg:
         self.adapt_X = PCAadapt(components=reduce_X, force=False)
         self.adapt_Y = PCAadapt(components=reduce_Y, force=False)
         self.adapt_Z = PCAadapt(components=reduce_Z, force=False)
+        assert wY > 0, 'prediction weight cannot be 0'
+        self.wX = wX
+        self.wY = wY
+        self.wZ = wZ
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_id = checkpoint_id
 
@@ -239,7 +245,7 @@ class NN3WayReg:
         epoch = 0
 
         # loss partial weights
-        wX, wZ, wY = 1, 1, 1
+        wX, wZ, wY = self.wX, self.wZ, self.wY
 
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         best_model_path = join(self.checkpoint_dir, f"best_model_{self.checkpoint_id}.pt")
@@ -252,7 +258,11 @@ class NN3WayReg:
             if self.clip:
                 Y_predicted = 1 - F.relu(1 - Y_predicted)
 
-            loss = wX*criterion(X_recons, X_tensor) + wZ*criterion(Z_recons, Z_tensor) + wY*criterion(Y_predicted, Y_tensor)
+            loss = wY * criterion(Y_predicted, Y_tensor)
+            if wX > 0:
+                loss += wX*criterion(X_recons, X_tensor)
+            if wZ > 0:
+                loss += wZ*criterion(Z_recons, Z_tensor)
 
             if self.reg_strength>0:
                 loss += self.reg_strength * self.jaggedness(Y_predicted)

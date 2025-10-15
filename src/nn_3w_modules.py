@@ -18,7 +18,8 @@ class FF3W(nn.Module):
         for hidden_size in hidden:
             layers.append(nn.Linear(in_features, hidden_size))
             layers.append(activation())
-            layers.append(nn.Dropout(p=dropout))
+            if dropout>0:
+                layers.append(nn.Dropout(p=dropout))
             in_features = hidden_size
 
         layers.append(nn.Linear(in_features, output_dim))

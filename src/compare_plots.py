@@ -4,21 +4,26 @@ import os
 import numpy as np
 
 # --- methods and paths ---
-gas = 'nitrogen'
-# gas = 'hydrogen'
+# gas = 'nitrogen'
+gas = 'hydrogen'
 
-if gas=='nitrogen':
-    methods = ['baseline', "RF", "RF-PCA12-PCAin12", "ff-128-256-128", "ff-64-128-128-64-PCA12", "ff-64-128-128-64-PCA12-0", "ff-128-256-512-256-128-PCA12-0"]
-    baseline_path = '../attachements/reverse_from_N2'
-    methods_path  = f'../results/plots/{gas}'
-else: # no baseline
-    methods = ["RF", "ff-128-256-128", "ff-128-256-128-y10"]
-    baseline_path = None
-    methods_path  = f'../results/plots/{gas}'
+# if gas=='nitrogen':
+#     methods = ['baseline', "RF", "RF-PCA12-PCAin12", "ff-128-256-128", "ff-64-128-128-64-PCA12", "ff-64-128-128-64-PCA12-0", "ff-128-256-512-256-128-PCA12-0"]
+#     baseline_path = '../attachements/reverse_from_N2'
+#     methods_path  = f'../results/plots/{gas}'
+# else: # no baseline
+#     methods = ["RF", "ff-128-256-128", "ff-128-256-128-y10"]
+#     baseline_path = None
+#     methods_path  = f'../results/plots/{gas}'
+
+baseline_path = None
+methods = ["R3-3L128", "R3-3L128-PCAZY8", "R3-3L128-PCAZY8-dr"]
 
 
 # --- selected models to display ---
 selected_ids = [1, 9, 17, 26, 34, 38, 48, 53, 62, 67, 73, 80, 89, 93, 105]
+methods_path = '../results/plots'
+gas_suffix = '-Gout'  # gas out representation
 
 # --- Crea figura y subplots ---
 n_rows = len(selected_ids)
@@ -31,7 +36,7 @@ for i, model_id in enumerate(selected_ids):
         if j==0 and baseline_path is not None: #baseline method
             img_path = os.path.join(baseline_path, f"model{model_id:02d}.png")
         else:
-            img_path = os.path.join(methods_path, method, f"model{model_id}.png")
+            img_path = os.path.join(methods_path, method, f"model{model_id}{gas_suffix}.png")
         if os.path.exists(img_path):
             img = mpimg.imread(img_path)
             axes[i, j].imshow(img)
@@ -49,7 +54,7 @@ for i, model_id in enumerate(selected_ids):
 
 plt.tight_layout()
 # plt.show()
-plt.savefig(f'../results/plots/{gas}/comparison.png',
+plt.savefig(f'../results/{gas}{gas_suffix}_comparison.png',
     dpi=300,
     bbox_inches="tight",
     pad_inches=0.1,

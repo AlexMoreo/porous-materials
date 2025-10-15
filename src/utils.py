@@ -6,7 +6,7 @@ from os import makedirs
 import pickle
 
 
-def plot_result(out_true, out_pred, savefig=None, err_fun=None):
+def plot_result(out_true, out_pred, savefig=None, err_fun=None, scale_err=1):
     plt.cla()
     plt.figure(figsize=(8, 6))
 
@@ -21,7 +21,10 @@ def plot_result(out_true, out_pred, savefig=None, err_fun=None):
     # plt.ylim(0,3500)
 
     if err_fun is not None:
-        err_val = err_fun(out_true, out_pred)
+        err_val = err_fun(out_true, out_pred)*scale_err
+        err_name='MSE'
+        if scale_err>1:
+            err_name+='(*)'
         plt.plot(x_axis, out_pred, label=f'MSE = {err_val:.6f}', color='red', linestyle='-',linewidth=2)
 
     plt.legend(loc='lower right', bbox_to_anchor=(1, 0))
