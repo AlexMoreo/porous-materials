@@ -292,17 +292,17 @@ class NN3WayReg:
             X_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
             X_recons, Z_recons, Y_predicted = self.model(X_tensor)
             if self.clip:
-                ypred = torch.clamp(Y_predicted, min=0.0, max=1.0)
-            ypred = ypred.detach().cpu().numpy()
-            ypred = self.adapt_Y.inverse_transform(ypred)
+                Y_predicted = torch.clamp(Y_predicted, min=0.0, max=1.0)
+            Y_predicted = Y_predicted.detach().cpu().numpy()
+            Y_predicted = self.adapt_Y.inverse_transform(Y_predicted)
             if return_XZ:
                 X_recons = X_recons.detach().cpu().numpy()
                 X_recons = self.adapt_X.inverse_transform(X_recons)
 
                 Z_recons = Z_recons.detach().cpu().numpy()
                 Z_recons = self.adapt_Z.inverse_transform(Z_recons)
-                return ypred, X_recons, Z_recons
-            return ypred
+                return Y_predicted, X_recons, Z_recons
+            return Y_predicted
 
 
 class PrecomputedBaseline:
