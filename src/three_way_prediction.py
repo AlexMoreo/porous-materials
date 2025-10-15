@@ -9,11 +9,24 @@ from regression import NN3WayReg
 from utils import mse, ResultTracker, plot_result
 
 
+# PCA reductions
+Gout_pca = 8  # very good approximation (H2)
+Gin_pca  = None # 12 issomehow good approximation (N2) -- do we need to simplify the input?
+Vin_pca  = 8   # very good approximation (Vol)
+
+
 def methods():
     yield 'R3-3L128', NN3WayReg(
         model=FF3W(
             Xdim=Gindim, Zdim=Vdim, Ydim=Goutdim, Ldim=128, hidden=[64,128,256]
         )
+    ),
+    yield 'R3-3L128-PCAZY8', NN3WayReg(
+        model=FF3W(
+            Xdim=Gindim, Zdim=Vin_pca, Ydim=Gout_pca, Ldim=128, hidden=[64,128,256]
+        ),
+        reduce_Z=Vin_pca,
+        reduce_Y=Gout_pca
     )
 
 path_h2 = '../data/training/dataset_for_hydrogen.csv'

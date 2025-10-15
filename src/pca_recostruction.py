@@ -5,11 +5,11 @@ from data import *
 from utils import *
 from tqdm import tqdm
 
-# reduce='input'  # 8 dimenions
+reduce='input'  # 8 dimenions
 # reduce='nitrogen'
-reduce='hydrogen'
+# reduce='hydrogen'
 
-components=12
+components=8
 
 path_nitrogen = f'../data/training/dataset_for_nitrogen.csv'
 path_hydrogen = f'../data/training/dataset_for_hydrogen.csv'
