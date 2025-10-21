@@ -70,6 +70,14 @@ def mse(out_true, out_pred):
     return np.mean((out_true-out_pred)**2)
 
 
+def load_method_errors(path, test_idx=None):
+    errors = ResultTracker(path)
+    if test_idx is None:
+        test_idx = sorted(errors.results.keys())
+    return np.asarray([errors.get(idx) for idx in test_idx])
+
+
+
 class ResultTracker:
     # keeps track of results with disc persistency
     def __init__(self, path):
