@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import LeaveOneOut, KFold
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.svm import LinearSVR
@@ -258,11 +259,10 @@ class NN3WayReg:
             if self.clip:
                 Y_predicted = 1 - F.relu(1 - Y_predicted)
 
-            loss = wY * criterion(Y_predicted, Y_tensor)
-            if wX > 0:
-                loss += wX*criterion(X_recons, X_tensor)
-            if wZ > 0:
-                loss += wZ*criterion(Z_recons, Z_tensor)
+            y_loss = criterion(Y_predicted, Y_tensor)
+            x_loss = 0 if wX==0 else criterion(X_recons, X_tensor)
+            z_loss = 0 if wZ==0 else criterion(Z_recons, Z_tensor)
+            loss = wY*y_loss + wX*x_loss + wZ*z_loss
 
             if self.reg_strength>0:
                 loss += self.reg_strength * self.jaggedness(Y_predicted)
@@ -271,7 +271,8 @@ class NN3WayReg:
             optimizer.step()
 
             if loss < best_loss:
-                best_loss=loss.item()
+                best_loss = loss.item()
+                best_loss_y = y_loss.item()
                 patience=PATIENCE
                 # save best model
                 torch.save(self.model.state_dict(), best_model_path)
@@ -292,6 +293,7 @@ class NN3WayReg:
         # Load the best model weights before returning
         self.model.load_state_dict(torch.load(best_model_path))
         self.best_loss = best_loss
+        self.best_loss_y = best_loss_y
 
         return self
 
@@ -339,3 +341,21 @@ class PrecomputedBaseline:
     def predict(self, X):
         # assert np.isclose(X, self.X).all(), 'wrong values'
         return self.y * self.scale_inv
+
+
+class RandomForestRegressorPCA:
+    def __init__(self, Xreduce_to, Yreduce_to):
+        # super().__init__()
+        self.adaptX = PCAadapt(components=Xreduce_to, force=False)
+        self.adaptY = PCAadapt(components=Yreduce_to, force=False)
+        self.rf = RandomForestRegressor()
+
+    def fit(self, X, y, sample_weight=None):
+        X = self.adaptX.fit_transform(X)
+        y = self.adaptY.fit_transform(y)
+        return self.rf.fit(X, y, sample_weight=sample_weight)
+
+    def predict(self, X):
+        X = self.adaptX.transform(X)
+        y = self.rf.predict(X)
+        return self.adaptY.inverse_transform(y)

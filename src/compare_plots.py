@@ -9,19 +9,24 @@ from tqdm import tqdm
 gas = 'hydrogen'
 
 baseline_path = None
-# methods = ["R3-3L128", "R3-3L128-PCAZY8", "R3-3L128-PCAZY8-dr"]
-methods = ['R3-XYZ','R3-XYZ-L0','R3-XY','R3-ZY','R3-Y','R3-Xyz','R3-Xy','R3-zy','R3-y']
+# methods = ['RF', 'RFy', 'RFxy', 'R3-XYZ', 'R3-XYZ-L0', 'R3-Xyz-L0',
+#            'R3-XY','R3-ZY','R3-Y','R3-Xyz','R3-Xy','R3-zy','R3-y']
+methods = ['R3-XYZ-L0', 'R3-Xyz-L0']
 
 
 # --- selected models to display ---
-selected_ids = [1, 9, 17, 26, 34, 38, 48, 53, 62, 67, 73, 80, 89, 93, 105]
+# selected_ids = [1, 9, 17, 26, 34, 38, 48, 53, 62, 67, 73, 80, 89, 93, 105]
+# selected_ids = [35,35]
+selected_ids = list(range(10,40))
+# methods = ['R3-XY']+[f'R3-XY-v{i+1}' for i in range(10)]
 methods_path = '../results/plots'
 gas_suffix = '-Gout'  # gas out representation
 
 # --- Crea figura y subplots ---
 n_rows = len(selected_ids)
 n_cols = len(methods)
-fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 2.5 * n_rows))
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 2.5 * n_rows), constrained_layout=False)
+plt.subplots_adjust(wspace=0.0, hspace=0.0)
 
 # --- Cargar y mostrar cada imagen ---
 for i, model_id in tqdm(enumerate(selected_ids), desc='generating plots', total=len(selected_ids)):
@@ -45,9 +50,9 @@ for i, model_id in tqdm(enumerate(selected_ids), desc='generating plots', total=
         if j == 0:
             axes[i, j].set_ylabel(f"Model {model_id}", fontsize=12)
 
-path_out = f'../results/{gas}{gas_suffix}_comparison.png'
+path_out = f'../results/{gas}{gas_suffix}_var_comparison.png'
 print(f'plots generated, saving images in {path_out}')
-plt.tight_layout()
+plt.tight_layout(pad=0.)
 plt.savefig(path_out,
     dpi=300,
     bbox_inches="tight",

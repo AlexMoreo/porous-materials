@@ -92,7 +92,7 @@ class ResultTracker:
         pickle.dump(self.results, open(self.path, 'wb'), pickle.HIGHEST_PROTOCOL)
 
     def get(self, target):
-        return self.results[target]
+        return self.results.get(target, np.nan)
 
     def __contains__(self, target):
         return target in self.results
