@@ -36,6 +36,7 @@ selected_tests = np.array(selected_tests)
 
 kde = KernelDensity(kernel='gaussian')
 
+
 def kde_find_bandwidth(X, cv=10):
     grid = {'bandwidth': np.linspace(0.0001, 1, 100)}
     kde = GridSearchCV(KernelDensity(kernel='gaussian'), grid, cv=cv)

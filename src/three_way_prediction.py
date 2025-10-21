@@ -80,6 +80,12 @@ def methods():
         reduce_Z=Vin_pca, reduce_Y=Go_pca,
         checkpoint_id=2
     ),
+    yield 'R3-XY', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        ),
+        wZ=0
+    ),
     yield 'R3-XY2', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
@@ -102,11 +108,23 @@ def methods():
     # yield 'R3-XY-v8', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
     # yield 'R3-XY-v9', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
     # yield 'R3-XY-v10', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
+    yield 'R3-ZY', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        ),
+        wX=0
+    ),
     yield 'R3-ZY2', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
         ),
         wX=0
+    ),
+    yield 'R3-Y', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        ),
+        wX=0, wZ=0
     ),
     yield 'R3-Y2', NN3WayReg(
         model=FF3W(
@@ -127,6 +145,13 @@ def methods():
         reduce_Y=Go_pca,
         wZ=0
     ),
+    yield 'R3-zy', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+        ),
+        reduce_Z=Vin_pca, reduce_Y=Go_pca,
+        wX=0
+    ),
     yield 'R3-zy2', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
@@ -140,6 +165,13 @@ def methods():
         ),
         reduce_X=Gi_pca, reduce_Z=Vin_pca, reduce_Y=Go_pca,
         wX=0
+    ),
+    yield 'R3-y', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+        ),
+        reduce_Y=Go_pca,
+        wX=0, wZ=0
     ),
     yield 'R3-y2', NN3WayReg(
         model=FF3W(
