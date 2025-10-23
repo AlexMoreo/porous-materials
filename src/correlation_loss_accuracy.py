@@ -12,7 +12,8 @@ only_models = None
 # only_models = ['R3-Xyz-L0']
 
 
-methods = ['R3-XYZ', 'R3-XYZ-L0', 'R3-Xyz-L0', 'R3-XY', 'R3-ZY', 'R3-Y', 'R3-Xyz', 'R3-Xy', 'R3-zy', 'R3-xzy', 'R3-y']
+# methods = ['R3-XYZ', 'R3-XYZ-L0', 'R3-Xyz-L0', 'R3-XY', 'R3-ZY', 'R3-Y', 'R3-Xyz', 'R3-Xy', 'R3-zy', 'R3-xzy', 'R3-y']
+methods = [f'R3-XY{i}' for i in range(5)]
 
 selected_tests = None
 # selected_tests = [35]
@@ -27,7 +28,7 @@ for sel_test in tqdm(selected_tests, desc='plotting', total=111):
     method_pairs = {}
     for method in methods:
         errors = ResultTracker(f'../results/errors/{method}.pkl')
-        convergence = ResultTracker(f'../results/convergence/{method}.pkl')
+        convergence = ResultTracker(f'../results/convergence/{method}_yloss.pkl')
 
         # method_pairs[method] = [(convergence.get(f'model{i+1}'), errors.get(f'model{i+1}')) for i in selected_tests if f'model{i+1}' in errors]
         method_pairs[method] = [(convergence.get(f'model{i}'), errors.get(f'model{i}')) for i in selected_tests

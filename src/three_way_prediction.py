@@ -86,13 +86,13 @@ def methods():
         ),
         wZ=0
     ),
-    for i in range(5):
-        yield f'R3-XY{i}', NN3WayReg(
-            model=FF3W(
-                Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-            ),
-            wZ=0
-        ),
+    # for i in range(5):
+    #     yield f'R3-XY{i}', NN3WayReg(
+    #         model=FF3W(
+    #             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #         ),
+    #         wZ=0
+    #     ),
     yield 'R3-XYw', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
@@ -115,26 +115,26 @@ def methods():
         ),
         wX=0
     ),
-    for i in range(5):
-        yield f'R3-ZY{i}', NN3WayReg(
-            model=FF3W(
-                Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-            ),
-            wX=0
-        ),
+    # for i in range(5):
+    #     yield f'R3-ZY{i}', NN3WayReg(
+    #         model=FF3W(
+    #             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #         ),
+    #         wX=0
+    #     ),
     yield 'R3-Y', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
         ),
         wX=0, wZ=0
     ),
-    for i in range(5):
-        yield f'R3-Y{i}', NN3WayReg(
-            model=FF3W(
-                Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-            ),
-            wX=0, wZ=0
-        ),
+    # for i in range(5):
+    #     yield f'R3-Y{i}', NN3WayReg(
+    #         model=FF3W(
+    #             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #         ),
+    #         wX=0, wZ=0
+    #     ),
     yield 'R3-Xyz', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
@@ -155,14 +155,14 @@ def methods():
         reduce_Z=Vin_pca, reduce_Y=Go_pca,
         wX=0
     ),
-    for i in range(5):
-        yield f'R3-zy{i}', NN3WayReg(
-            model=FF3W(
-                Xdim=Gi_dim, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-            ),
-            reduce_Z=Vin_pca, reduce_Y=Go_pca,
-            wX=0
-        ),
+    # for i in range(5):
+    #     yield f'R3-zy{i}', NN3WayReg(
+    #         model=FF3W(
+    #             Xdim=Gi_dim, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+    #         ),
+    #         reduce_Z=Vin_pca, reduce_Y=Go_pca,
+    #         wX=0
+    #     ),
     yield 'R3-xzy', NN3WayReg(
         model=FF3W(
             Xdim=Gi_pca, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
@@ -177,14 +177,14 @@ def methods():
         reduce_Y=Go_pca,
         wX=0, wZ=0
     ),
-    for i in range(5):
-        yield f'R3-y{i}', NN3WayReg(
-            model=FF3W(
-                Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-            ),
-            reduce_Y=Go_pca,
-            wX=0, wZ=0
-        ),
+    # for i in range(5):
+    #     yield f'R3-y{i}', NN3WayReg(
+    #         model=FF3W(
+    #             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+    #         ),
+    #         reduce_Y=Go_pca,
+    #         wX=0, wZ=0
+    #     ),
 
 if __name__ == '__main__':
     conf=Configuration(

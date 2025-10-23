@@ -11,13 +11,20 @@ gas = 'hydrogen'
 baseline_path = None
 # methods = ['RF', 'RFy', 'RFxy', 'R3-XYZ', 'R3-XYZ-L0', 'R3-Xyz-L0',
 #            'R3-XY','R3-ZY','R3-Y','R3-Xyz','R3-Xy','R3-zy','R3-y']
-methods = ['R3-XYZ-L0', 'R3-Xyz-L0']
+methods = (
+        [f'R3-XY{i}' for i in range(5)]
+           # + [f'R3-ZY{i}' for i in range(5)]
+           # + [f'R3-Y{i}' for i in range(5)]
+         + [f'R3-y{i}' for i in range(5)]
+)
+
 
 
 # --- selected models to display ---
 # selected_ids = [1, 9, 17, 26, 34, 38, 48, 53, 62, 67, 73, 80, 89, 93, 105]
-# selected_ids = [35,35]
-selected_ids = list(range(10,40))
+# selected_ids = [3,10,35,37,68,70]
+selected_ids = [37,68]
+# selected_ids = list(range(10,40))
 # methods = ['R3-XY']+[f'R3-XY-v{i+1}' for i in range(10)]
 methods_path = '../results/plots'
 gas_suffix = '-Gout'  # gas out representation
