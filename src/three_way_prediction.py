@@ -74,13 +74,13 @@ def methods():
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
         )
     ),
-    yield 'R2I1O-xy', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-        ),
-        reduce_Y=Go_pca, reduce_X=V_pca
+    #yield 'R2I1O-xy', NN2I1OReg(
+    #    model=FF2I1O(
+    #        Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+    #    ),
+    #    reduce_Y=Go_pca, reduce_X=V_pca
 
-    ),
+#    ),
     yield 'R3-XYZ', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
