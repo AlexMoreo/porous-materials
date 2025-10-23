@@ -41,7 +41,11 @@ V_pca  = 8   # very good approximation (Vol)
 
 
 hidden = [128,256,128]
+hidden_big = [128,256,512,256,128]
+hidden_small = [128]
 Ldim = 128
+Ldim_big = 256
+Ldin_small = 64
 
 # XYZ means 3way, and each signal is original
 # Xyz means 3way, but y and z is pca, X is original
@@ -58,23 +62,57 @@ def methods():
     # yield 'RFy', RandomForestRegressorPCA(Xreduce_to=Gi_dim, Yreduce_to=Go_pca)
     # yield 'RFxy', RandomForestRegressorPCA(Xreduce_to=Gi_pca, Yreduce_to=Go_pca)
     yield '1NN', NearestNeighbor()
-    # yield 'R2I1O-Y', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0
-    # ),
-    # yield 'R2I1O-y', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0, reduce_Y=Go_pca
-    # ),
-    # yield 'R2I1O-XY', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     )
-    # ),
+    yield 'R2I1O-Y', NN2I1OReg(
+        model=FF2I1O(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        ),
+        wX=0
+    ),
+    yield 'R2I1O-y', NN2I1OReg(
+        model=FF2I1O(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+        ),
+        wX=0, reduce_Y=Go_pca
+    ),
+    yield 'R2I1O-XY', NN2I1OReg(
+        model=FF2I1O(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        )
+    ),
+    yield 'R2I1O-Y-big', NN2I1OReg(
+        model=FF2I1O(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
+        ),
+        wX=0
+    ),
+    yield 'R2I1O-y-big', NN2I1OReg(
+        model=FF2I1O(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim_big, hidden=hidden_big
+        ),
+        wX=0, reduce_Y=Go_pca
+    ),
+    yield 'R2I1O-XY-big', NN2I1OReg(
+        model=FF2I1O(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
+        )
+    ),
+    yield 'R2I1O-Y-small', NN2I1OReg(
+        model=FF2I1O(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldin_small, hidden=hidden_small
+        ),
+        wX=0
+    ),
+    yield 'R2I1O-y-small', NN2I1OReg(
+        model=FF2I1O(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldin_small, hidden=hidden_small
+        ),
+        wX=0, reduce_Y=Go_pca
+    ),
+    yield 'R2I1O-XY-small', NN2I1OReg(
+        model=FF2I1O(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldin_small, hidden=hidden_small
+        )
+    ),
     #yield 'R2I1O-xy', NN2I1OReg(
     #    model=FF2I1O(
     #        Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
@@ -82,11 +120,21 @@ def methods():
     #    reduce_Y=Go_pca, reduce_X=V_pca
 
 #    ),
-#     yield 'R3-XYZ', NN3WayReg(
-#         model=FF3W(
-#             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-#         )
-#     ),
+    yield 'R3-XYZ', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        )
+    ),
+    yield 'R3-XYZ-big', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
+        )
+    ),
+    yield 'R3-XYZ-small', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
+        )
+    ),
     # yield 'R3-XYZw', NN3WayReg(
     #     model=FF3W(
     #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
@@ -108,6 +156,18 @@ def methods():
     yield 'R3-XY', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        ),
+        wZ=0
+    ),
+    yield 'R3-XY-big', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
+        ),
+        wZ=0
+    ),
+    yield 'R3-XY-small', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
         ),
         wZ=0
     ),
