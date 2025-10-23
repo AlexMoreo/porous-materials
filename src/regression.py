@@ -317,6 +317,124 @@ class NN3WayReg:
             return Y_predicted
 
 
+class NN2I1OReg:
+    def __init__(self, model, lr=0.003, reg_strength=0., clip=None, cuda=True,
+                 reduce_X=None, reduce_Y=None, reduce_Z=None,
+                 wX=1, wY=1,
+                 checkpoint_dir='../checkpoints', checkpoint_id=42):
+        self.model = model
+        self.lr = lr
+        self.reg_strength = reg_strength
+        self.clip = clip
+        self.cuda = cuda
+        self.adapt_X = PCAadapt(components=reduce_X, force=False)
+        self.adapt_Y = PCAadapt(components=reduce_Y, force=False)
+        self.adapt_Z = PCAadapt(components=reduce_Z, force=False)
+        assert wY > 0, 'prediction weight cannot be 0'
+        self.wX = wX
+        self.wY = wY
+        self.checkpoint_dir = checkpoint_dir
+        self.checkpoint_id = checkpoint_id
+
+        if cuda:
+            self.model.cuda()
+            self.device = 'cuda'
+        else:
+            self.device = 'cpu'
+
+
+    def fit(self, X, Y, Z):
+
+        X = self.adapt_X.fit_transform(X)
+        Y = self.adapt_Y.fit_transform(Y)
+        Z = self.adapt_Z.fit_transform(Z)
+
+        X_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
+        Y_tensor = torch.tensor(Y, dtype=torch.float32, device=self.device)
+        Z_tensor = torch.tensor(Z, dtype=torch.float32, device=self.device)
+
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+
+        num_epochs = np.inf
+        PATIENCE = 5000
+        best_loss = np.inf
+        patience = PATIENCE
+        epoch = 0
+
+        # loss partial weights
+        wX, wY = self.wX, self.wY
+
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        best_model_path = join(self.checkpoint_dir, f"best_model_{self.checkpoint_id}.pt")
+
+        #for epoch_ in range(num_epochs):
+        while patience > 0:
+            self.model.train()
+            optimizer.zero_grad()
+            X_recons, Y_predicted = self.model(X_tensor, Z_tensor)
+            if self.clip:
+                Y_predicted = 1 - F.relu(1 - Y_predicted)
+
+            y_loss = criterion(Y_predicted, Y_tensor)
+            x_loss = 0 if wX==0 else criterion(X_recons, X_tensor)
+            loss = wY*y_loss + wX*x_loss
+
+            if self.reg_strength>0:
+                loss += self.reg_strength * self.jaggedness(Y_predicted)
+
+            loss.backward()
+            optimizer.step()
+
+            if loss < best_loss:
+                best_loss = loss.item()
+                best_loss_y = y_loss.item()
+                patience=PATIENCE
+                # save best model
+                torch.save(self.model.state_dict(), best_model_path)
+            else:
+                patience-=1
+
+            print(f'\rEpoch [{epoch + 1:05d}{"" if num_epochs==np.inf else f"/{num_epochs}"}, '
+                  f'P={patience:04d}], '
+                  f'Loss: {loss.item():.10f}, '
+                  f'Best loss: {best_loss:.10f}', end='', flush=True)
+            if patience<=0:
+                print(f'\nMethod stopped after {epoch} epochs')
+                break
+            epoch+=1
+            if num_epochs-epoch==0:
+                break
+
+        print()
+
+        # Load the best model weights before returning
+        self.model.load_state_dict(torch.load(best_model_path))
+        self.best_loss = best_loss
+        self.best_loss_y = best_loss_y
+
+        return self
+
+    def predict(self, X, Z, return_X=False):
+        X = self.adapt_X.transform(X)
+        Z = self.adapt_Z.transform(Z)
+        self.model.eval()
+        with torch.no_grad():
+            X_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
+            Z_tensor = torch.tensor(Z, dtype=torch.float32, device=self.device)
+            X_recons, Y_predicted = self.model(X_tensor, Z_tensor)
+            if self.clip:
+                Y_predicted = torch.clamp(Y_predicted, min=0.0, max=1.0)
+            Y_predicted = Y_predicted.detach().cpu().numpy()
+            Y_predicted = self.adapt_Y.inverse_transform(Y_predicted)
+            if return_X:
+                X_recons = X_recons.detach().cpu().numpy()
+                X_recons = self.adapt_X.inverse_transform(X_recons)
+
+                return Y_predicted, X_recons
+            return Y_predicted
+
+
 class PrecomputedBaseline:
     def __init__(self, path, scale, basedir='../results/theirs'):
         self.basedir = basedir
