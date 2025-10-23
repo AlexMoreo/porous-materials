@@ -45,7 +45,7 @@ hidden_big = [128,256,512,256,128]
 hidden_small = [128]
 Ldim = 128
 Ldim_big = 256
-Ldin_small = 64
+Ldim_small = 64
 
 # XYZ means 3way, and each signal is original
 # Xyz means 3way, but y and z is pca, X is original
@@ -98,19 +98,19 @@ def methods():
     ),
     yield 'R2I1O-Y-small', NN2I1OReg(
         model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldin_small, hidden=hidden_small
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
         ),
         wX=0
     ),
     yield 'R2I1O-y-small', NN2I1OReg(
         model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldin_small, hidden=hidden_small
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim_small, hidden=hidden_small
         ),
         wX=0, reduce_Y=Go_pca
     ),
     yield 'R2I1O-XY-small', NN2I1OReg(
         model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldin_small, hidden=hidden_small
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
         )
     ),
     #yield 'R2I1O-xy', NN2I1OReg(
