@@ -27,7 +27,7 @@ all_ids = list(range(1,112))
 # selected_ids = [1,2,3,4]
 # selected_ids = list(range(10,40))
 # methods = ['R3-XY']+[f'R3-XY-v{i+1}' for i in range(10)]
-methods_path = '../results/plots'
+methods_path = '../../results/plots'
 gas_suffix = '-Gout'  # gas out representation
 
 n_ids = len(all_ids)

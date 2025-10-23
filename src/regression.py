@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import LeaveOneOut, KFold
 from sklearn.multioutput import MultiOutputRegressor
+from sklearn.neighbors import NearestNeighbors
 from sklearn.svm import LinearSVR
 import torch
 from torch import nn, optim
@@ -477,3 +478,18 @@ class RandomForestRegressorPCA:
         X = self.adaptX.transform(X)
         y = self.rf.predict(X)
         return self.adaptY.inverse_transform(y)
+
+
+class NearestNeighbor:
+    def __init__(self):
+        pass
+
+    def fit(self, X, Y, Z):
+        self.nn = NearestNeighbors(n_neighbors=1, metric='euclidean')
+        self.nn.fit(X)
+        self.Y = Y
+
+    def predict(self, X):
+        distances, indices = self.nn.kneighbors(X)
+        nearest = indices[:,0]
+        return self.Y[nearest]

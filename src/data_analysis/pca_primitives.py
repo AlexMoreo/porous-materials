@@ -6,8 +6,8 @@ for reduce in ['input', 'nitrogen', 'hydrogen']:
 
     components=8
 
-    path_nitrogen = f'../data/training/dataset_for_nitrogen.csv'
-    path_hydrogen = f'../data/training/dataset_for_hydrogen.csv'
+    path_nitrogen = f'../../data/training/dataset_for_nitrogen.csv'
+    path_hydrogen = f'../../data/training/dataset_for_hydrogen.csv'
 
     if reduce=='input':
         X, _ = load_data(path_nitrogen, cumulate_x=True, normalize=True)

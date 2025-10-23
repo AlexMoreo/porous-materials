@@ -26,7 +26,7 @@ if __name__ == '__main__':
         with_rank=True
     )
     table = LatexTable('mse-sel', configuration=conf)
-    table_path = f'../results/tables/mse-sel.pdf'
+    table_path = f'../../results/tables/mse-sel.pdf'
 
     errors = defaultdict(lambda :[])
     convergences = []

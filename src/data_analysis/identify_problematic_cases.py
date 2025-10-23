@@ -14,14 +14,14 @@ from scipy.stats import norm
 
 
 table = Table('mse')
-table_path = f'../results/tables/cases.pdf'
+table_path = f'../../results/tables/cases.pdf'
 table.format.show_std = False
 table.format.mean_prec = 5
 table.format.stat_test = None
 error_scale=1e6
 
-path_h2 = '../data/training/dataset_for_hydrogen.csv'
-path_n2 = '../data/training/dataset_for_nitrogen.csv'
+path_h2 = '../../data/training/dataset_for_hydrogen.csv'
+path_n2 = '../../data/training/dataset_for_nitrogen.csv'
 Vin, Gin, Gout = load_both_data(path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True)
 
 Vdim, Gindim, Goutdim = Vin.shape[1], Gin.shape[1], Gout.shape[1]

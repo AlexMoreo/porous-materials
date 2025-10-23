@@ -6,7 +6,7 @@ from sklearn.model_selection import LeaveOneOut
 
 from data import load_both_data
 from nn_3w_modules import FF3W, FF2I1O
-from regression import NN3WayReg, RandomForestRegressorPCA, NN2I1OReg
+from regression import NN3WayReg, RandomForestRegressorPCA, NN2I1OReg, NearestNeighbor
 from result_table.src.format import Configuration
 from result_table.src.table import LatexTable
 
@@ -57,23 +57,24 @@ def methods():
     yield 'RF', RandomForestRegressor(),
     # yield 'RFy', RandomForestRegressorPCA(Xreduce_to=Gi_dim, Yreduce_to=Go_pca)
     # yield 'RFxy', RandomForestRegressorPCA(Xreduce_to=Gi_pca, Yreduce_to=Go_pca)
-    yield 'R2I1O-Y', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        ),
-        wX=0
-    ),
-    yield 'R2I1O-y', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-        ),
-        wX=0, reduce_Y=Go_pca
-    ),
-    yield 'R2I1O-XY', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        )
-    ),
+    yield '1NN', NearestNeighbor()
+    # yield 'R2I1O-Y', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     wX=0
+    # ),
+    # yield 'R2I1O-y', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     wX=0, reduce_Y=Go_pca
+    # ),
+    # yield 'R2I1O-XY', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     )
+    # ),
     #yield 'R2I1O-xy', NN2I1OReg(
     #    model=FF2I1O(
     #        Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
@@ -81,11 +82,11 @@ def methods():
     #    reduce_Y=Go_pca, reduce_X=V_pca
 
 #    ),
-    yield 'R3-XYZ', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        )
-    ),
+#     yield 'R3-XYZ', NN3WayReg(
+#         model=FF3W(
+#             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+#         )
+#     ),
     # yield 'R3-XYZw', NN3WayReg(
     #     model=FF3W(
     #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
@@ -133,12 +134,12 @@ def methods():
     # yield 'R3-XY-v8', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
     # yield 'R3-XY-v9', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
     # yield 'R3-XY-v10', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    yield 'R3-ZY', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        ),
-        wX=0
-    ),
+    # yield 'R3-ZY', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     wX=0
+    # ),
     # for i in range(5):
     #     yield f'R3-ZY{i}', NN3WayReg(
     #         model=FF3W(
@@ -146,12 +147,12 @@ def methods():
     #         ),
     #         wX=0
     #     ),
-    yield 'R3-Y', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        ),
-        wX=0, wZ=0
-    ),
+    # yield 'R3-Y', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     wX=0, wZ=0
+    # ),
     # for i in range(5):
     #     yield f'R3-Y{i}', NN3WayReg(
     #         model=FF3W(
@@ -194,13 +195,13 @@ def methods():
     #     reduce_X=Gi_pca, reduce_Z=Vin_pca, reduce_Y=Go_pca,
     #     wX=0
     # ),
-    yield 'R3-y', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-        ),
-        reduce_Y=Go_pca,
-        wX=0, wZ=0
-    ),
+    # yield 'R3-y', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     reduce_Y=Go_pca,
+    #     wX=0, wZ=0
+    # ),
     # for i in range(5):
     #     yield f'R3-y{i}', NN3WayReg(
     #         model=FF3W(
@@ -214,7 +215,7 @@ if __name__ == '__main__':
     conf=Configuration(
         show_std=False,
         mean_prec=5,
-        resizebox=.9,
+        resizebox=.3,
         stat_test=None,
         with_mean=True,
         with_rank=True
@@ -270,11 +271,15 @@ if __name__ == '__main__':
                     if isinstance(reg, NN3WayReg):
                         Gout_pred, Gin_rec, Vin_rec = reg.predict(Gin_te, return_XZ=True)
                         plot_result(Vin_te[0], Vin_rec[0], partial_path+'-Vin.png', err_fun=mse, scale_err=1e6)
+                        plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
                     elif isinstance(reg, NN2I1OReg):
                         Gout_pred, Gin_rec = reg.predict(Gin_te, Vin_te, return_X=True)
+                        plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
+                    else:
+                        Gout_pred = reg.predict(Gin_te)
 
                     plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
-                    plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
+
 
                     if hasattr(reg, 'best_loss'):
                         method_convergence.update(test_name, reg.best_loss)

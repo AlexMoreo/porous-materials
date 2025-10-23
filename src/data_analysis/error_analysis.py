@@ -13,7 +13,7 @@ from utils import load_method_errors
 # Ejemplo: nombres de los modelos
 test_idx = [f'model{idx}' for idx in np.arange(111)+1]
 method_names = ["R3-XY", "R3-ZY", "R3-y", "R3-Y", "R3-zy"]
-error_path_prefix = f'../results/errors'
+error_path_prefix = f'../../results/errors'
 E = np.asarray([load_method_errors(f'{error_path_prefix}/{method}.pkl', test_idx) for method in method_names]).T
 n_samples, n_models = E.shape
 

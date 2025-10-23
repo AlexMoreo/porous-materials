@@ -3,7 +3,7 @@ import numpy as np
 
 from data import load_data
 
-path = '../data/training/dataset_for_hydrogen.csv'
+path = '../../data/training/dataset_for_hydrogen.csv'
 # path = '../data/training/dataset_for_nitrogen.csv'
 X, Y = load_data(path, cumulate_x=True, normalize=True)
 
