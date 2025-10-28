@@ -1,0 +1,53 @@
+I have generated many models using the following nomenclature:
+- X=input (input gas), Z=hidden (volume-based representation), Y=output (output gas)
+- When the name contains a variable, e.g., X, it means the loss accounts for its reconstruction (X,Z) or prediction (Y)
+- If the variable is in lowercase, then a PCA variant is used; e.g., z means the model tries to reconstruct the PCA of Z
+    - The number of components are chosen in a different script (8 for N2 and Vol seems to work well, and 12 for H2)
+- So far, all models share the same architecture (FF), with the same hidden layers ([128,256,128] for branch). The only variation is in the loss function.
+    - I have also explored variants small ([128]) and big ([128,256,512,256,128]) with no clear result trends.
+- E.g., R3-Xyz would mean a model that has a loss L=loss(X,Xhat)+loss(pca(Y),y_hat)+loss(PCA(Z), z_hat).
+- The suffix L0 means that the central representation contains 0 additional latent variables. Default is L=128.
+Result:
+- Best performing seems to be R3-XY (with only 5 bad results)
+- Imposing Volume as an intermediate representation seems not to bring about any benefit
+
+I have tried with different weights for the loss; e.g., wX=0.1, wZ=0.1, wY=1.0, but does not seem to work any better.
+
+I have added baseline 1-NN (returns as predicted output de output of the closest training curve)
+- see "data_analysis/pairwise_similarities.py"
+
+Some patterns I have found:
+- Some models that generally work well (e.g., R3-XY) sometimes perform poorly; in such cases, however, there is one other model that performs very well.
+- Can we tell apart these cases and invoke a different model? Is there any pattern we can learn and use with a meta-model?
+    - see script "data_analysis/correlation_loss_accuracy.py" (not trivial)
+- I have also investigated the likelihood of a test case, but only 2 or 3 test cases are identified as OOD (Model 32/41/45), and they don't really look specially problematic cases.
+    - see script "data_analysis/identify_problematic_cases.py"
+- PCA analysis (implicit smoothing and dimensionality reduction):
+    - see "data_analysis/pca_reconstruction.py"
+    - see "data_analysis/pca_primitives.py"
+- Variability: If I repeat the same experiment 10 times, results are more or less preserved, but the "disastrous" cases are not always reproduced... and sometimes some new "disaster" shows up
+
+
+Open questions:
+- Dropout? Are we overfitting? check tr-loss vs. y-loss (dropout seems not to help)
+- Different capacity? (small vs big experiments, not clear)
+- Different architectures?
+- Smoothing?
+- Is the current representation the best one? cumulative and normalized?
+- R3-XY-small works well in average, but plots are "jaggy"; maybe smooth the output?
+
+New idea: use [X;Z] as input, because the current Z are simulated and obtained with no error (I think).
+- See models R2I1O ("2 inputs 1 output")
+
+New idea: why dont use 10% of the training for validation so we avoid overfitting?
+- doesnt look promising...
+
+New idea: meta-model, choose, among the closest curves in training, the model that delivered the best result?
+- no good selection so far
+- investigating clustering strategies
+    - see "data_analysis/curve_clustering.py"
+- try with a proper ensemble method?
+
+Things I have not explored so far:
+- Impose the smoothing to the Y signal (the only smoothing we are imposing is due to PCA in the "-y" variants)
+- Standardize Vol wrt N2 (they operate at very different scales)
