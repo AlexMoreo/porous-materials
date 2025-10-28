@@ -1,8 +1,9 @@
 import os
 
 import numpy as np
+from quapy.model_selection import cross_val_predict
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import LeaveOneOut, KFold
+from sklearn.model_selection import LeaveOneOut, KFold, cross_val_predict
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.neighbors import NearestNeighbors
 from sklearn.svm import LinearSVR
@@ -10,7 +11,7 @@ import torch
 from torch import nn, optim
 from os.path import join
 import torch.nn.functional as F
-from sklearn.base import clone
+from sklearn.base import clone, BaseEstimator
 from sklearn.decomposition import PCA
 
 import utils
@@ -108,17 +109,6 @@ class NNReg:
     # def __repr__(self):
     #     f'NR({self.model})-lr{self.lr}-rs{self.reg_strength}'
 
-    def jaggedness(self, output):
-        # Define second-derivative kernel
-        kernel = torch.tensor([1.0, -2.0, 1.0], dtype=output.dtype, device=output.device).view(1, 1, -1)
-
-        # Add channel dimension for conv1d
-        conv_out = F.conv1d(output.unsqueeze(1), kernel, padding=0)
-
-        # Remove channel dimension and compute mean squared
-        penalty = torch.mean(conv_out ** 2)
-        return penalty
-
     def fit(self, X, y):
 
         if self.reduce_in:
@@ -156,7 +146,7 @@ class NNReg:
                 outputs = 1-F.relu(1-outputs)
             loss = criterion(outputs, y_tensor)
             if self.reg_strength>0:
-                loss += self.reg_strength * self.jaggedness(outputs)
+                loss += self.reg_strength * jaggedness(outputs)
             loss.backward()
             optimizer.step()
 
@@ -203,26 +193,42 @@ class NNReg:
             return ypred
 
 
+def jaggedness(output):
+    # Define second-derivative kernel
+    kernel = torch.tensor([1.0, -2.0, 1.0], dtype=output.dtype, device=output.device).view(1, 1, -1)
+
+    # Add channel dimension for conv1d
+    conv_out = F.conv1d(output.unsqueeze(1), kernel, padding=0)
+
+    # Remove channel dimension and compute mean squared
+    penalty = torch.mean(conv_out ** 2)
+    return penalty
 
 
 class NN3WayReg:
-    def __init__(self, model, lr=0.003, reg_strength=0., clip=None, cuda=True,
-                 reduce_X=None, reduce_Y=None, reduce_Z=None,
+    def __init__(self, model, lr=0.003, smooth_reg_weight=0., clip=None, cuda=True,
+                 X_red=None, Y_red=None, Z_red=None,
                  wX=1, wY=1, wZ=1,
-                 checkpoint_dir='../checkpoints', checkpoint_id=0, max_epochs=np.inf):
+                 monotonic_Z=False,
+                 smooth_prediction=False,
+                 checkpoint_dir='../checkpoints', checkpoint_id=None, max_epochs=np.inf):
         self.model = model
         self.lr = lr
-        self.reg_strength = reg_strength
+        self.reg_strength = smooth_reg_weight
         self.clip = clip
         self.cuda = cuda
-        self.adapt_X = PCAadapt(components=reduce_X, force=False)
-        self.adapt_Y = PCAadapt(components=reduce_Y, force=False)
-        self.adapt_Z = PCAadapt(components=reduce_Z, force=False)
+        self.adapt_X = PCAadapt(components=X_red, force=False)
+        self.adapt_Y = PCAadapt(components=Y_red, force=False)
+        self.adapt_Z = PCAadapt(components=Z_red, force=False)
         assert wY > 0, 'prediction weight cannot be 0'
         self.wX = wX
         self.wY = wY
         self.wZ = wZ
+        self.monotonic_Z = monotonic_Z
+        self.smooth_prediction = smooth_prediction
         self.checkpoint_dir = checkpoint_dir
+        if checkpoint_id is None:
+            checkpoint_id = np.random.randint(low=0, high=10e8)
         self.checkpoint_id = checkpoint_id
         self.max_epochs = max_epochs
 
@@ -232,6 +238,10 @@ class NN3WayReg:
         else:
             self.device = 'cpu'
 
+        if self.smooth_prediction:
+            smooth_length = 5
+            self.smooth_layer = nn.Conv1d(1, 1, kernel_size=smooth_length, padding='same', bias=False)
+            self.smooth_layer.weight.data.fill_(1 / smooth_length)
 
     def fit(self, X, Y, Z, in_val=None):
 
@@ -249,16 +259,12 @@ class NN3WayReg:
         Ytr, Yval = split_val(Y, self.adapt_Y)
         Ztr, Zval = split_val(Z, self.adapt_Z)
 
-        criterion = nn.MSELoss()
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
         PATIENCE = 5000
         best_loss = np.inf
         patience = PATIENCE
         epoch = 0
-
-        # loss partial weights
-        wX, wZ, wY = self.wX, self.wZ, self.wY
 
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         best_model_path = join(self.checkpoint_dir, f"best_model_{self.checkpoint_id}.pt")
@@ -270,17 +276,8 @@ class NN3WayReg:
             self.model.train()
             optimizer.zero_grad()
             X_recons, Z_recons, Y_predicted = self.model(Xtr)
-            if self.clip:
-                Y_predicted = 1 - F.relu(1 - Y_predicted)
-
-            y_loss = criterion(Y_predicted, Ytr)
-            x_loss = 0 if wX==0 else criterion(X_recons, Xtr)
-            z_loss = 0 if wZ==0 else criterion(Z_recons, Ztr)
-            loss_tr = wY*y_loss + wX*x_loss + wZ*z_loss
-
-            if self.reg_strength>0:
-                loss_tr += self.reg_strength * self.jaggedness(Y_predicted)
-
+            Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
+            loss_tr = self.loss_fn(Xtr, X_recons, Ytr, Y_predicted, Ztr, Z_recons)
             loss_tr.backward()
             optimizer.step()
 
@@ -289,13 +286,12 @@ class NN3WayReg:
             if in_val is not None:
                 self.model.eval()
                 X_recons, Z_recons, Y_predicted = self.model(Xval)
-                if self.clip:
-                    Y_predicted = 1 - F.relu(1 - Y_predicted)
-                loss_val = criterion(Y_predicted, Yval)
+                Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
+                loss_val = self.loss_fn(Xval, X_recons, Yval, Y_predicted, Zval, Z_recons)
                 losstype = 'Val'
             else:
                 # no validation: monitor the training loss instead
-                loss_val = y_loss
+                loss_val = loss_tr
                 losstype = 'Tr'
 
             # eval monitoring
@@ -327,16 +323,49 @@ class NN3WayReg:
 
         return self
 
+    def loss_fn(self, X, X_hat, Y, Y_hat, Z, Z_hat):
+        criterion = nn.MSELoss()
+        y_loss = criterion(Y_hat, Y)
+        x_loss = 0 if self.wX == 0 else criterion(X_hat, X)
+        z_loss = 0 if self.wZ == 0 else criterion(Z_hat, Z)
+        loss = self.wY*y_loss + self.wX*x_loss + self.wZ*z_loss
+        if self.reg_strength > 0:
+            loss += self.reg_strength * jaggedness(Y_hat)
+        return loss
+
+    def post_process(self, Y_hat, Z_hat):
+        if self.clip:
+            Y_hat = 1 - F.relu(1 - Y_hat)
+        if self.monotonic_Z:
+            Z_hat = self.monotonic(Z_hat)
+        return Y_hat, Z_hat
+
+    def post_smooth(self, Y_hat):
+        if self.smooth_prediction:
+            output = Y_hat.unsqueeze(1)
+            output = self.smooth_layer(output)
+            return output.squeeze(1)
+        else:
+            return Y_hat
+
+    def monotonic(self, z):
+        # Predicts increments only
+        increments = F.relu(z)
+        cumulative = torch.cumsum(increments, dim=1)  # guarantees monotonicity
+        return cumulative
+
     def predict(self, X, return_XZ=False):
         X = self.adapt_X.transform(X)
         self.model.eval()
         with torch.no_grad():
             X_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
             X_recons, Z_recons, Y_predicted = self.model(X_tensor)
-            if self.clip:
-                Y_predicted = torch.clamp(Y_predicted, min=0.0, max=1.0)
+            Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
+            # if self.clip:
+            #     Y_predicted = torch.clamp(Y_predicted, min=0.0, max=1.0)
             Y_predicted = Y_predicted.detach().cpu().numpy()
             Y_predicted = self.adapt_Y.inverse_transform(Y_predicted)
+            Y_predicted = self.post_smooth(Y_predicted)
             if return_XZ:
                 X_recons = X_recons.detach().cpu().numpy()
                 X_recons = self.adapt_X.inverse_transform(X_recons)
@@ -347,135 +376,18 @@ class NN3WayReg:
             return Y_predicted
 
 
-class NN2I1OReg:
-    def __init__(self, model, lr=0.003, reg_strength=0., clip=None, cuda=True,
-                 reduce_X=None, reduce_Y=None, reduce_Z=None,
-                 wX=1, wY=1,
-                 checkpoint_dir='../checkpoints', checkpoint_id=42):
-        self.model = model
-        self.lr = lr
-        self.reg_strength = reg_strength
-        self.clip = clip
-        self.cuda = cuda
-        self.adapt_X = PCAadapt(components=reduce_X, force=False)
-        self.adapt_Y = PCAadapt(components=reduce_Y, force=False)
-        self.adapt_Z = PCAadapt(components=reduce_Z, force=False)
-        assert wY > 0, 'prediction weight cannot be 0'
-        self.wX = wX
-        self.wY = wY
-        self.checkpoint_dir = checkpoint_dir
-        self.checkpoint_id = checkpoint_id
+class DirectRegression:
+    def __init__(self, regressor:BaseEstimator, x_red=None, y_red=None):
+        self.adaptX = PCAadapt(components=x_red, force=False)
+        self.adaptY = PCAadapt(components=y_red, force=False)
+        self.rf = clone(regressor)
 
-        if cuda:
-            self.model.cuda()
-            self.device = 'cuda'
-        else:
-            self.device = 'cpu'
-
-
-    def fit(self, X, Y, Z):
-
-        X = self.adapt_X.fit_transform(X)
-        Y = self.adapt_Y.fit_transform(Y)
-        Z = self.adapt_Z.fit_transform(Z)
-
-        X_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
-        Y_tensor = torch.tensor(Y, dtype=torch.float32, device=self.device)
-        Z_tensor = torch.tensor(Z, dtype=torch.float32, device=self.device)
-
-        criterion = nn.MSELoss()
-        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
-
-        num_epochs = np.inf
-        PATIENCE = 5000
-        best_loss = np.inf
-        patience = PATIENCE
-        epoch = 0
-
-        # loss partial weights
-        wX, wY = self.wX, self.wY
-
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
-        best_model_path = join(self.checkpoint_dir, f"best_model_{self.checkpoint_id}.pt")
-
-        #for epoch_ in range(num_epochs):
-        while patience > 0:
-            self.model.train()
-            optimizer.zero_grad()
-            X_recons, Y_predicted = self.model(X_tensor, Z_tensor)
-            if self.clip:
-                Y_predicted = 1 - F.relu(1 - Y_predicted)
-
-            y_loss = criterion(Y_predicted, Y_tensor)
-            x_loss = 0 if wX==0 else criterion(X_recons, X_tensor)
-            loss = wY*y_loss + wX*x_loss
-
-            if self.reg_strength>0:
-                loss += self.reg_strength * self.jaggedness(Y_predicted)
-
-            loss.backward()
-            optimizer.step()
-
-            if loss < best_loss:
-                best_loss = loss.item()
-                best_loss_y = y_loss.item()
-                patience=PATIENCE
-                # save best model
-                torch.save(self.model.state_dict(), best_model_path)
-            else:
-                patience-=1
-
-            print(f'\rEpoch [{epoch + 1:05d}{"" if num_epochs==np.inf else f"/{num_epochs}"}, '
-                  f'P={patience:04d}], '
-                  f'Loss: {loss.item():.10f}, '
-                  f'Best loss: {best_loss:.10f}', end='', flush=True)
-            if patience<=0:
-                print(f'\nMethod stopped after {epoch} epochs')
-                break
-            epoch+=1
-            if num_epochs-epoch==0:
-                break
-
-        print()
-
-        # Load the best model weights before returning
-        self.model.load_state_dict(torch.load(best_model_path))
-        self.best_loss = best_loss
-        self.best_loss_y = best_loss_y
-
-        return self
-
-    def predict(self, X, Z, return_X=False):
-        X = self.adapt_X.transform(X)
-        Z = self.adapt_Z.transform(Z)
-        self.model.eval()
-        with torch.no_grad():
-            X_tensor = torch.tensor(X, dtype=torch.float32, device=self.device)
-            Z_tensor = torch.tensor(Z, dtype=torch.float32, device=self.device)
-            X_recons, Y_predicted = self.model(X_tensor, Z_tensor)
-            if self.clip:
-                Y_predicted = torch.clamp(Y_predicted, min=0.0, max=1.0)
-            Y_predicted = Y_predicted.detach().cpu().numpy()
-            Y_predicted = self.adapt_Y.inverse_transform(Y_predicted)
-            if return_X:
-                X_recons = X_recons.detach().cpu().numpy()
-                X_recons = self.adapt_X.inverse_transform(X_recons)
-
-                return Y_predicted, X_recons
-            return Y_predicted
-
-
-class RandomForestXYPCA:
-    def __init__(self, Xreduce_to, Yreduce_to):
-        # super().__init__()
-        self.adaptX = PCAadapt(components=Xreduce_to, force=False)
-        self.adaptY = PCAadapt(components=Yreduce_to, force=False)
-        self.rf = RandomForestRegressor()
-
-    def fit(self, X, y, sample_weight=None):
+    def fit(self, X, Y, Z=None):
+        assert Z is None, 'wrong value for Z, must be None'
         X = self.adaptX.fit_transform(X)
-        y = self.adaptY.fit_transform(y)
-        return self.rf.fit(X, y, sample_weight=sample_weight)
+        Y = self.adaptY.fit_transform(Y)
+        self.rf.fit(X, Y)
+        return self
 
     def predict(self, X):
         X = self.adaptX.transform(X)
@@ -483,35 +395,36 @@ class RandomForestXYPCA:
         return self.adaptY.inverse_transform(y)
 
 
-class RandomForestXZYPCA:
-    def __init__(self, Xreduce_to, Zreduce_to, Yreduce_to):
-        # super().__init__()
-        self.adaptX = PCAadapt(components=Xreduce_to, force=False)
-        self.adaptZ = PCAadapt(components=Zreduce_to, force=False)
-        self.adaptY = PCAadapt(components=Yreduce_to, force=False)
-        self.rf = RandomForestRegressor()
+class TwoStepRegression:
+    def __init__(self, regressor:BaseEstimator, x_red=None, y_red=None, z_red=None):
+        self.adaptX = PCAadapt(components=x_red, force=False)
+        self.adaptZ = PCAadapt(components=z_red, force=False)
+        self.adaptY = PCAadapt(components=y_red, force=False)
+        self.rf1 = clone(regressor)
+        self.rf2 = clone(regressor)
 
-    def fit(self, X, Z, y, sample_weight=None):
+    def fit(self, X, Y, Z=None):
         X = self.adaptX.fit_transform(X)
         Z = self.adaptZ.fit_transform(Z)
-        XZ = np.hstack([X,Z])
-        y = self.adaptY.fit_transform(y)
-        self.rf.fit(XZ, y, sample_weight=sample_weight)
+        Y = self.adaptY.fit_transform(Y)
+        Z_hat = cross_val_predict(self.rf1, X, Z, cv=5, n_jobs=5)
+        self.rf1.fit(X, Z)
+        self.rf2.fit(Z_hat, Y)
         return self
 
-    def predict(self, X, Z):
+    def predict(self, X):
         X = self.adaptX.transform(X)
-        Z = self.adaptZ.transform(Z)
-        XZ = np.hstack([X, Z])
-        y = self.rf.predict(XZ)
-        return self.adaptY.inverse_transform(y)
+        Z_hat = self.rf1.predict(X)
+        Y_hat = self.rf2.predict(Z_hat)
+        return self.adaptY.inverse_transform(Y_hat)
 
 
 class NearestNeighbor:
     def __init__(self):
         pass
 
-    def fit(self, X, Y):
+    def fit(self, X, Y, Z=None):
+        assert Z is None, 'wrong value for Z, must be None'
         self.nn = NearestNeighbors(n_neighbors=1, metric='euclidean')
         self.nn.fit(X)
         self.Y = Y

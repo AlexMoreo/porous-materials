@@ -21,7 +21,7 @@ def sequential(input_dim, output_dim, hidden, activation, dropout):
 class FF3W(nn.Module):
     def __init__(self, Xdim, Zdim, Ydim, Ldim, hidden, activation=nn.ReLU, dropout=0):
         super(FF3W, self).__init__()
-        self.Zdim=Zdim
+        self.Zdim = Zdim
 
         self.X2ZL_branch = sequential(Xdim, Zdim+Ldim, hidden, activation, dropout)
         self.ZL2X_branch = sequential(Zdim+Ldim, Xdim, hidden, activation, dropout)
@@ -35,22 +35,8 @@ class FF3W(nn.Module):
         return Xrec, Zrec, Ypred
 
 
-class FF2I1O(nn.Module):
-
-    def __init__(self, Xdim, Zdim, Ydim, Ldim, hidden, activation=nn.ReLU, dropout=0):
-        super(FF2I1O, self).__init__()
-        self.Zdim=Zdim
-
-        self.XZ2L_branch = sequential(Xdim + Zdim, Ldim, hidden, activation, dropout)
-        self.L2X_branch = sequential(Ldim, Xdim, hidden, activation, dropout)
-        self.L2Y_branch = sequential(Ldim, Ydim, hidden, activation, dropout)
 
 
-    def forward(self, X, Z):
-        XZ = torch.hstack([X,Z])
-        L = self.XZ2L_branch(XZ)
-        Xrec = self.L2X_branch(L)
-        Ypred = self.L2Y_branch(L)
-        return Xrec, Ypred
+
 
 

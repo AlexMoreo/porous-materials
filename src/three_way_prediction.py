@@ -4,35 +4,30 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import LeaveOneOut, train_test_split
-
+from os.path import join
 from data import load_both_data
 from data_analysis.curve_clustering import cluser_curves
-from nn_3w_modules import FF3W, FF2I1O
-from regression import NN3WayReg, RandomForestXYPCA, NN2I1OReg, NearestNeighbor, MetaLearner, RandomForestXZYPCA
+from nn_3w_modules import FF3W
+from regression import NN3WayReg, DirectRegression, NearestNeighbor, MetaLearner, \
+    TwoStepRegression
 from result_table.src.format import Configuration
 from result_table.src.table import LatexTable
-
 from utils import mse, ResultTracker, plot_result
 
+
+results_dir = '../results'
 # only_tables = True
 only_tables = False
 
 with_validation = False
 
 only_models = None
-# only_models = ['R3-xzy',]
-# only_models = [f'R3-XY-v{i+1}' for i in range(10)]
-# only_models = ['R3-Xyz-L0']
-
-
 selected_tests = None
-# selected_tests = [35]
 
 # PCA reductions
 Go_pca = 8  # very good approximation (H2)
 Gi_pca  = 12 # 12 is somehow good approximation (N2) -- do we need to simplify the input?
 V_pca  = 8   # very good approximation (Vol)
-
 
 # RQ: does dropout help? looks like no!
 # RQ: does PCA helps? sometimes yes, others is better the orig representation... not clear!
@@ -42,7 +37,6 @@ V_pca  = 8   # very good approximation (Vol)
 # RQ: more importance to loss Gout (wY)?
 # RQ: better using Vin as a regularization autoencodding or not?
 # RQ: better using Ldim>0 or not?
-
 
 hidden = [128,256,128]
 hidden_big = [128,256,512,256,128]
@@ -59,78 +53,30 @@ Ldim_small = 64
 # testing idea: keep track of the y_loss independently and check whether there is a correlation tr-loss vs te-loss
 # testing idea (-w): wY is times the other two
 
-baselines = ['RF', 'RFy', 'RFxy', 'RFXZY', 'RFXZy', 'RFxzy','1NN' ]
+baselines = ['RFY', 'RFy', 'RFZY', 'RFZYcv','RFZy', 'RFzY', 'RFzy','1NN' ]
 
 def methods():
-    yield 'RF', RandomForestRegressor(),
-    yield 'RFy', RandomForestXYPCA(Xreduce_to=Gi_dim, Yreduce_to=Go_pca)
-    yield 'RFxy', RandomForestXYPCA(Xreduce_to=Gi_pca, Yreduce_to=Go_pca)
-    yield 'RFXZY', RandomForestXZYPCA(Xreduce_to=Gi_dim, Zreduce_to=V_dim, Yreduce_to=Go_dim)
-    yield 'RFXZy', RandomForestXZYPCA(Xreduce_to=Gi_dim, Zreduce_to=V_dim, Yreduce_to=Go_pca)
-    yield 'RFxzy', RandomForestXZYPCA(Xreduce_to=Gi_pca, Zreduce_to=V_pca, Yreduce_to=Go_pca)
+    rf = RandomForestRegressor()
+    yield 'RFY', DirectRegression(rf),
+    yield 'RFy', DirectRegression(rf, y_red=Go_pca)
+    # yield 'RFZY', TwoStepRegression(rf)
     yield '1NN', NearestNeighbor()
-    # yield 'R2I1O-Y', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0
-    # ),
-    # yield 'R2I1O-y', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0, reduce_Y=Go_pca
-    # ),
-    # yield 'R2I1O-XY', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     )
-    # ),
-    # yield 'R2I1O-Y-big', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
-    #     ),
-    #     wX=0
-    # ),
-    # yield 'R2I1O-y-big', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim_big, hidden=hidden_big
-    #     ),
-    #     wX=0, reduce_Y=Go_pca
-    # ),
-    # yield 'R2I1O-XY-big', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
-    #     )
-    # ),
-    # yield 'R2I1O-Y-small', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
-    #     ),
-    #     wX=0
-    # ),
-    # yield 'R2I1O-y-small', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim_small, hidden=hidden_small
-    #     ),
-    #     wX=0, reduce_Y=Go_pca
-    # ),
-    # yield 'R2I1O-XY-small', NN2I1OReg(
-    #     model=FF2I1O(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
-    #     )
-    # ),
-    #yield 'R2I1O-xy', NN2I1OReg(
-    #    model=FF2I1O(
-    #        Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #    ),
-    #    reduce_Y=Go_pca, reduce_X=V_pca
-
-#    ),
     yield 'R3-XYZ', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
         )
+    ),
+    yield 'R3-Xyz', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+        ),
+        Z_red=V_pca, Y_red=Go_pca
+    ),
+    yield 'R3-XYZ-s', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        ),
+        smooth_reg_weight=0.001, monotonic_Z=True, smooth_prediction=True
     ),
     # yield 'R3-XYZ-big', NN3WayReg(
     #     model=FF3W(
@@ -160,12 +106,12 @@ def methods():
     #     reduce_Z=Vin_pca, reduce_Y=Go_pca,
     #     checkpoint_id=2
     # ),
-    yield 'R3-XY', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        ),
-        wZ=0
-    ),
+    # yield 'R3-XY', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     wZ=0
+    # ),
     # yield 'R3-XY-dr', NN3WayReg(
     #     model=FF3W(
     #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden, dropout=0.2
@@ -207,12 +153,12 @@ def methods():
     # yield 'R3-XY-v8', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
     # yield 'R3-XY-v9', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
     # yield 'R3-XY-v10', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    yield 'R3-ZY', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        ),
-        wX=0
-    ),
+    # yield 'R3-ZY', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     wX=0
+    # ),
     # for i in range(5):
     #     yield f'R3-ZY{i}', NN3WayReg(
     #         model=FF3W(
@@ -220,12 +166,12 @@ def methods():
     #         ),
     #         wX=0
     #     ),
-    yield 'R3-Y', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        ),
-        wX=0, wZ=0
-    ),
+    # yield 'R3-Y', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     wX=0, wZ=0
+    # ),
     # for i in range(5):
     #     yield f'R3-Y{i}', NN3WayReg(
     #         model=FF3W(
@@ -268,13 +214,13 @@ def methods():
     #     reduce_X=Gi_pca, reduce_Z=Vin_pca, reduce_Y=Go_pca,
     #     wX=0
     # ),
-    yield 'R3-y', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-        ),
-        reduce_Y=Go_pca,
-        wX=0, wZ=0
-    ),
+    # yield 'R3-y', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     reduce_Y=Go_pca,
+    #     wX=0, wZ=0
+    # ),
     # for i in range(5):
     #     yield f'R3-y{i}', NN3WayReg(
     #         model=FF3W(
@@ -304,8 +250,8 @@ def validation_idx(X, n_groups, val_prop=0.1, random_state=0):
     return in_val_mask
 
 
-if __name__ == '__main__':
-    conf=Configuration(
+def new_table():
+    table_config=Configuration(
         show_std=False,
         mean_prec=5,
         resizebox=.6,
@@ -313,37 +259,43 @@ if __name__ == '__main__':
         with_mean=True,
         with_rank=True
     )
-    table = LatexTable('mse', configuration=conf)
-    table_path = f'../results/tables/mse.pdf'
-    error_scale=1e6
+    return LatexTable('mse', configuration=table_config)
 
+
+def load_data():
     path_h2 = '../data/training/dataset_for_hydrogen.csv'
     path_n2 = '../data/training/dataset_for_nitrogen.csv'
-    Vin, Gin, Gout = load_both_data(path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True)
+    return load_both_data(
+        path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True,
+        return_index=True, exclude_id=['model41', 'model45']
+    )
+
+
+if __name__ == '__main__':
+    table = new_table()
+    table_path = join(results_dir, f'tables/mse.pdf')
+    error_scale=1e6
+
+    test_names, Vin, Gin, Gout = load_data()
+    (n_instances, V_dim), Gi_dim, Go_dim = Vin.shape, Gin.shape[1], Gout.shape[1]
 
     val_mask = validation_idx(Gin, n_groups=5, val_prop=0.1, random_state=0)
 
-    V_dim, Gi_dim, Go_dim = Vin.shape[1], Gin.shape[1], Gout.shape[1]
-
     errors = defaultdict(lambda :[])
-    test_names = np.asarray([f'model{i+1}' for i in range(len(Vin))])
 
     if selected_tests is None:
-        selected_tests = list(np.arange(len(Vin))+1)  # default: all tests
+        selected_tests = np.copy(test_names)
 
-    metalearner = MetaLearner(
-        base_methods=['R3-XY', 'R3-XYZ', 'R3-y', 'R3-Y', 'R3-ZY'],
-        prediction_dir='../results/val_predictions',
-        X=Gin,
-        Xnames=test_names
-    )
+    # metalearner = MetaLearner(
+    #     base_methods=['R3-XY', 'R3-XYZ', 'R3-y', 'R3-Y', 'R3-ZY'],
+    #     prediction_dir='../results/val_predictions',
+    #     X=Gin,
+    #     Xnames=test_names
+    # )
 
     loo = LeaveOneOut()
     for (train_idx, test_idx) in loo.split(Gin):
-        i = test_idx[0]
-        if (i+1) not in selected_tests: continue
-
-        test_name = test_names[i]
+        test_name = test_names[test_idx[0]]
         print(f'{test_name}:')
 
         Vin_tr, Gin_tr, Gout_tr, in_val = Vin[train_idx], Gin[train_idx], Gout[train_idx], val_mask[train_idx]
@@ -355,29 +307,30 @@ if __name__ == '__main__':
         for method, reg in methods():
             print(f'{method=}')
             # if only_models is not None and method not in only_models: continue
-            method_errors = ResultTracker(f'../results/errors/{method}.pkl')
-            method_convergence = ResultTracker(f'../results/convergence/{method}.pkl')
-            method_val_predictions = ResultTracker(f'../results/val_predictions/{method}.pkl')
-            # method_y_loss = ResultTracker(f'../results/convergence/{method}_yloss.pkl')
+            method_errors = ResultTracker(join(results_dir, f'errors/{method}.pkl'))
+            method_convergence = ResultTracker(join(results_dir, f'convergence/{method}.pkl'))
+            method_val_predictions = ResultTracker(join(results_dir, f'val_predictions/{method}.pkl'))
 
             if test_name not in method_errors:
-                if only_tables:
+
+                if only_tables or (test_name not in selected_tests):
                     continue
+
+                # base name for all plots of this run
+                partial_path = join(results_dir, f'plots/{method}/{str(test_name)}')
+
                 if method in baselines:  # simple baseline
-                    if isinstance(reg, RandomForestXZYPCA):
-                        reg.fit(Gin_tr, Vin_tr, Gout_tr)
-                        Gout_pred = reg.predict(Gin_te, Vin_te)
+                    if isinstance(reg, TwoStepRegression):
+                        reg.fit(Gin_tr, Gout_tr, Vin_tr)
                     else:
                         reg.fit(Gin_tr, Gout_tr)
-                        Gout_pred = reg.predict(Gin_te)
-                    partial_path = f'../results/plots/{method}/{str(test_name)}'
+                    Gout_pred = reg.predict(Gin_te)
                     plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
 
                 else:  # 3way prediction
                     # continue
                     reg.fit(Gin_tr, Gout_tr, Vin_tr, in_val)
 
-                    partial_path = f'../results/plots/{method}/{str(test_name)}'
                     if isinstance(reg, NN3WayReg):
                         Gout_pred, Gin_rec, Vin_rec = reg.predict(Gin_te, return_XZ=True)
                         plot_result(Vin_te[0], Vin_rec[0], partial_path +'-Vin.png', err_fun=mse, scale_err=1e6)
@@ -411,8 +364,8 @@ if __name__ == '__main__':
                       method=method, v=error_mean*error_scale)
 
         # meta learner
-        chosen_method = metalearner.predict(test_name)
-        print(f'for test={test_name} I would chose {chosen_method}')
+        # chosen_method = metalearner.predict(test_name)
+        # print(f'for test={test_name} I would chose {chosen_method}')
 
 
     # reorder by cluster-id

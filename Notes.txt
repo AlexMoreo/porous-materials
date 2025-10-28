@@ -51,3 +51,15 @@ New idea: meta-model, choose, among the closest curves in training, the model th
 Things I have not explored so far:
 - Impose the smoothing to the Y signal (the only smoothing we are imposing is due to PCA in the "-y" variants)
 - Standardize Vol wrt N2 (they operate at very different scales)
+
+
+=============================
+- Reset: del model41, model45, and make variants "Z" work.
+- Baseline Regressors: only direct regression
+- R3-XYZ
+    - Val o no val?
+    - Smooth o no smooth?
+        - suffix -s means smooth penalty on Y and monotonicity imposed on Z
+    - PCA o no PCA?
+    - Capacity?
+    - Architecture?
