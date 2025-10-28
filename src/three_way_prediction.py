@@ -16,8 +16,8 @@ from utils import mse, ResultTracker, plot_result
 import sys
 
 results_dir = '../results'
-# only_tables = True
-only_tables = "tables" in sys.argv
+only_tables = True
+# only_tables = "tables" in sys.argv
 
 with_validation = False
 
@@ -66,11 +66,17 @@ def methods():
     #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
     #     )
     # ),
-    yield 'R3-XYZ-xl', NN3WayReg(
+    yield 'R3-XYZ-s', NN3WayReg(
         model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim*2, hidden=hidden
-        )
+            Xdim=5, Zdim=5, Ydim=5, Ldim=20, hidden=[32]
+        ),
+        X_red=5, Z_red=5, Y_red=5,
     ),
+    # yield 'R3-XYZ-xl', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim*2, hidden=hidden
+    #     )
+    # ),
     # yield 'R3-Xyz', NN3WayReg(
     #     model=FF3W(
     #         Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
