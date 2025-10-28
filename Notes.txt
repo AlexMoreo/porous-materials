@@ -59,7 +59,7 @@ Things I have not explored so far:
 - R3-XYZ
     - Val o no val?
     - Smooth o no smooth?
-        - suffix -s means smooth penalty on Y and monotonicity imposed on Z
+        - suffix -s means smooth penalty on Y, smooth post-processing in inference, and monotonicity imposed on Z
     - PCA o no PCA?
     - Capacity?
     - Architecture?

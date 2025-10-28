@@ -342,9 +342,9 @@ class NN3WayReg:
 
     def post_smooth(self, Y_hat):
         if self.smooth_prediction:
-            output = Y_hat.unsqueeze(1)
+            output = torch.tensor(Y_hat).unsqueeze(1)
             output = self.smooth_layer(output)
-            return output.squeeze(1)
+            return output.squeeze(1).detach().cpu().numpy()
         else:
             return Y_hat
 
