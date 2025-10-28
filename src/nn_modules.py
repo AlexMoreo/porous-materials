@@ -102,7 +102,7 @@ class TransformerRegressor(nn.Module):
         self.positional_encoding = PositionalEncoding(d_model, dropout, max_len=input_size)
 
         # Transformer encoder
-        encoder_layer = nn.TransformerEncoderLayer(
+        encoder_layer = nn.TransformerEncoderLayer(results
             d_model=d_model,
             nhead=nhead,
             dim_feedforward=dim_feedforward,

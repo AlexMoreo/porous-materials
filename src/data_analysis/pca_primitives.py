@@ -2,22 +2,19 @@ from sklearn.decomposition import PCA
 from data import *
 from utils import *
 
-for reduce in ['input', 'nitrogen', 'hydrogen']:
+for reduce in ['volume', 'nitrogen', 'hydrogen']:
 
     components=8
 
-    path_nitrogen = f'../../data/training/dataset_for_nitrogen.csv'
-    path_hydrogen = f'../../data/training/dataset_for_hydrogen.csv'
+    path_n2 = f'../../data/training/dataset_for_nitrogen.csv'
+    path_h2 = f'../../data/training/dataset_for_hydrogen.csv'
+    Vin, Gin, Gout = load_both_data(path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True)
 
-    if reduce=='input':
-        X, _ = load_data(path_nitrogen, cumulate_x=True, normalize=True)
-        Z = X
-    elif reduce=='nitrogen':
-        _, y = load_data(path_nitrogen, cumulate_x=True, normalize=True)
-        Z = y
-    elif reduce=='hydrogen':
-        _, y = load_data(path_hydrogen, cumulate_x=True, normalize=True)
-        Z = y
+    Z = {
+        'volume': Vin,
+        'nitrogen': Gin,
+        'hydrogen': Gout
+    }[reduce]
 
     pca = PCA(n_components=components)
     Z_ = pca.fit_transform(Z)
@@ -41,10 +38,10 @@ for reduce in ['input', 'nitrogen', 'hydrogen']:
         axes[i].plot(x_axis, mean_curve, 'k--', label='Mean')
         axes[i].plot(x_axis, curve_plus, 'g', label=f'+1σ component {i + 1}')
         axes[i].legend()
-        axes[i].set_title(f"Principal component {i + 1} ({pca.explained_variance_ratio_[i] * 100:.1f}% var)")
+        axes[i].set_title(f"Principal component {i + 1} ({pca.explained_variance_ratio_[i] * 100:.3f}% var)")
         axes[i].grid(True)
 
     fig.suptitle('Analysis for "' + reduce + '"', fontsize=16)
     plt.tight_layout()
-    plt.subplots_adjust(top=0.93)  # 👈 deja espacio para el título general
+    plt.subplots_adjust(top=0.93)
     plt.show()

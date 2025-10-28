@@ -7,7 +7,7 @@ from sklearn.model_selection import LeaveOneOut
 
 from data import load_both_data
 from nn_3w_modules import FF3W
-from regression import NN3WayReg, RandomForestRegressorPCA
+from regression import NN3WayReg, RandomForestXYPCA
 from result_table.src.format import Configuration
 from result_table.src.table import LatexTable
 from utils import mse, ResultTracker, plot_result, load_method_errors

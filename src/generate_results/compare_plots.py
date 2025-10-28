@@ -17,7 +17,12 @@ baseline_path = None
 #            # + [f'R3-Y{i}' for i in range(5)]
 #          + [f'R3-y{i}' for i in range(5)]
 # )
-methods = ['RF', 'R2I1O-Y', 'R2I1O-y', 'R2I1O-XY', 'R3-XYZ', 'R3-XY', 'R3-ZY', 'R3-Y', 'R3-y']
+def var_size(method): return [f'{method}-small', method, f'{method}-big']
+methods = ['RF', 'RFy', 'RFxy', 'RFXZY','RFXZy','RFxzy', '1NN', #*var_size('R2I1O-Y'),
+           #*var_size('R2I1O-y'),
+           # *var_size('R2I1O-XY'), *var_size('R3-XY')] #, *var_size('R3-XY')]
+           'R3-y', 'R3-XY', 'R3-XYZ'
+           ]
 
 
 # --- selected models to display ---
@@ -31,7 +36,7 @@ methods_path = '../../results/plots'
 gas_suffix = '-Gout'  # gas out representation
 
 n_ids = len(all_ids)
-batch_size = 15  # creates grids of 20 x n_models
+batch_size = 5  # creates grids of 20 x n_models
 n_batches = (n_ids//batch_size) + (1 if n_ids%batch_size>1 else 0)
 
 for batch_i in range(n_batches):
@@ -69,7 +74,7 @@ for batch_i in range(n_batches):
                 axes[i, j].set_ylabel(f"Model {model_id}", fontsize=12)
 
 
-    path_out = f'../results/{gas}{gas_suffix}_comparison_{from_}-{to_}.png'
+    path_out = f'../../results/{gas}{gas_suffix}_comparison_{from_}-{to_}.png'
     print(f'plots generated, saving images in {path_out}...', end='')
     plt.tight_layout(pad=0.)
     plt.savefig(path_out,

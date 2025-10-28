@@ -66,8 +66,11 @@ def plot_result__depr(out_axis, out_true, out_pred, savefig=None, err_fun=None):
     plt.close()
 
 
-def mse(out_true, out_pred):
-    return np.mean((out_true-out_pred)**2)
+def mse(out_true, out_pred, average=True):
+    if average:
+        return np.mean((out_true-out_pred)**2)
+    else:
+        return np.mean((out_true - out_pred) ** 2, axis=1)
 
 
 def load_method_errors(path, test_idx=None):

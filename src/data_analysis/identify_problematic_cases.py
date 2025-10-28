@@ -5,15 +5,13 @@ from sklearn.model_selection import LeaveOneOut, GridSearchCV
 from sklearn.neighbors import KernelDensity
 
 from data import load_both_data
-from nn_3w_modules import FF3W
 from regression import NN3WayReg, PCAadapt
-from result_table.src.table import Table
-from utils import mse, ResultTracker, plot_result
+from result_table.src.table import LatexTable
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 
-table = Table('mse')
+table = LatexTable('mse')
 table_path = f'../../results/tables/cases.pdf'
 table.format.show_std = False
 table.format.mean_prec = 5
@@ -30,12 +28,10 @@ errors = defaultdict(lambda :[])
 test_names = []
 
 selected_tests = np.arange(len(Vin))+1  # default: all tests
-# selected_tests = [1, 9, 17, 26, 34, 38, 48, 53, 62, 67, 73, 80, 89, 93, 105]
 
 selected_tests = np.array(selected_tests)
 
 kde = KernelDensity(kernel='gaussian')
-
 
 def kde_find_bandwidth(X, cv=10):
     grid = {'bandwidth': np.linspace(0.0001, 1, 100)}
@@ -44,7 +40,6 @@ def kde_find_bandwidth(X, cv=10):
     bandwidth = kde.best_params_['bandwidth']
     print(f'grid search found {bandwidth=:.5f}')
     return bandwidth
-
 
 def kde_score(kde, X):
     return np.exp(kde.score_samples(X))
@@ -65,7 +60,7 @@ for (train_idx, test_idx) in loo.split(Gin):
     likelihoods.append(log_likelihood)
     table.add(benchmark=f'model{i + 1:3d}', method='Likelihood', v=log_likelihood)
 
-table.latexPDF(table_path, benchmark_order=sorted(table.benchmarks), verbose=False, resizebox=True, method_replace={}, landscape=False)
+table.latexPDF(table_path, landscape=False)
 
 likelihoods = np.array(likelihoods)
 order = np.argsort(likelihoods)
@@ -102,14 +97,11 @@ plt.tight_layout()
 plt.show()
 
 # Q-Q plot
-import scipy.stats as stats
-fig, ax = plt.subplots(figsize=(5, 5))
-stats.probplot(likelihoods, dist="norm", plot=ax)
-ax.set_title("Q–Q plot of log-likelihoods vs Normal distribution")
-plt.show()
-
-
-
+# import scipy.stats as stats
+# fig, ax = plt.subplots(figsize=(5, 5))
+# stats.probplot(likelihoods, dist="norm", plot=ax)
+# ax.set_title("Q–Q plot of log-likelihoods vs Normal distribution")
+# plt.show()
 
 for pos in outliers_pos:
     print(f'Model-{selected_tests[pos]:2d} has log-likelihood {likelihoods[pos]:.4f}')

@@ -33,25 +33,25 @@ for i, (Gin_i, Gout_i, nearest_idx_i) in enumerate(zip(Gin, Gout, nearest_idx)):
     nearest_output = Gout[nearest_idx_i]
     output_dist = mse(Gout_i, nearest_output)
 
+
     fig, axes = plt.subplots(1, 2, figsize=(8, 3))
 
     axes[0].plot(x, Gin_i, color='tab:blue')
-    axes[0].set_title(f"Input {i}")
-
     axes[0].plot(x, nearest_curve, color='tab:orange')
-    axes[0].set_title(f"Input space: Closest (idx={nearest_idx_i}, dist={nearest_dist[i]*1e6:.3f})")
+    axes[0].set_title(f"Input {i+1}: Closest model (idx={nearest_idx_i+1}, dist={nearest_dist[i]*1e6:.3f})")
 
+    err = mse(Gout_i, nearest_output)*1e6
     x = np.arange(len(Gout_i))
     axes[1].plot(x, Gout_i, color='tab:blue')
-    axes[1].set_title(f"Output {i}")
-
     axes[1].plot(x, nearest_output, color='tab:orange')
-    axes[1].set_title(f"Closest (idx={nearest_idx_i}, dist={output_dist*1e6:.3f})")
+    axes[1].set_title(f"Closest output, mse={err:.4f}")
 
     for ax in axes:
         ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.show()
+    plt.show(block=True)
+    plt.close('all')
+
 
 

@@ -1,12 +1,14 @@
 from collections import defaultdict
 
 import numpy as np
+from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import LeaveOneOut
+from sklearn.model_selection import LeaveOneOut, train_test_split
 
 from data import load_both_data
+from data_analysis.curve_clustering import cluser_curves
 from nn_3w_modules import FF3W, FF2I1O
-from regression import NN3WayReg, RandomForestRegressorPCA, NN2I1OReg, NearestNeighbor
+from regression import NN3WayReg, RandomForestXYPCA, NN2I1OReg, NearestNeighbor, MetaLearner, RandomForestXZYPCA
 from result_table.src.format import Configuration
 from result_table.src.table import LatexTable
 
@@ -14,6 +16,8 @@ from utils import mse, ResultTracker, plot_result
 
 # only_tables = True
 only_tables = False
+
+with_validation = False
 
 only_models = None
 # only_models = ['R3-xzy',]
@@ -55,64 +59,67 @@ Ldim_small = 64
 # testing idea: keep track of the y_loss independently and check whether there is a correlation tr-loss vs te-loss
 # testing idea (-w): wY is times the other two
 
-baselines = ['RF', 'RFy', 'RFxy']
+baselines = ['RF', 'RFy', 'RFxy', 'RFXZY', 'RFXZy', 'RFxzy','1NN' ]
 
 def methods():
     yield 'RF', RandomForestRegressor(),
-    # yield 'RFy', RandomForestRegressorPCA(Xreduce_to=Gi_dim, Yreduce_to=Go_pca)
-    # yield 'RFxy', RandomForestRegressorPCA(Xreduce_to=Gi_pca, Yreduce_to=Go_pca)
+    yield 'RFy', RandomForestXYPCA(Xreduce_to=Gi_dim, Yreduce_to=Go_pca)
+    yield 'RFxy', RandomForestXYPCA(Xreduce_to=Gi_pca, Yreduce_to=Go_pca)
+    yield 'RFXZY', RandomForestXZYPCA(Xreduce_to=Gi_dim, Zreduce_to=V_dim, Yreduce_to=Go_dim)
+    yield 'RFXZy', RandomForestXZYPCA(Xreduce_to=Gi_dim, Zreduce_to=V_dim, Yreduce_to=Go_pca)
+    yield 'RFxzy', RandomForestXZYPCA(Xreduce_to=Gi_pca, Zreduce_to=V_pca, Yreduce_to=Go_pca)
     yield '1NN', NearestNeighbor()
-    yield 'R2I1O-Y', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        ),
-        wX=0
-    ),
-    yield 'R2I1O-y', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-        ),
-        wX=0, reduce_Y=Go_pca
-    ),
-    yield 'R2I1O-XY', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        )
-    ),
-    yield 'R2I1O-Y-big', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
-        ),
-        wX=0
-    ),
-    yield 'R2I1O-y-big', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim_big, hidden=hidden_big
-        ),
-        wX=0, reduce_Y=Go_pca
-    ),
-    yield 'R2I1O-XY-big', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
-        )
-    ),
-    yield 'R2I1O-Y-small', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
-        ),
-        wX=0
-    ),
-    yield 'R2I1O-y-small', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim_small, hidden=hidden_small
-        ),
-        wX=0, reduce_Y=Go_pca
-    ),
-    yield 'R2I1O-XY-small', NN2I1OReg(
-        model=FF2I1O(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
-        )
-    ),
+    # yield 'R2I1O-Y', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     wX=0
+    # ),
+    # yield 'R2I1O-y', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     wX=0, reduce_Y=Go_pca
+    # ),
+    # yield 'R2I1O-XY', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     )
+    # ),
+    # yield 'R2I1O-Y-big', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
+    #     ),
+    #     wX=0
+    # ),
+    # yield 'R2I1O-y-big', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim_big, hidden=hidden_big
+    #     ),
+    #     wX=0, reduce_Y=Go_pca
+    # ),
+    # yield 'R2I1O-XY-big', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
+    #     )
+    # ),
+    # yield 'R2I1O-Y-small', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
+    #     ),
+    #     wX=0
+    # ),
+    # yield 'R2I1O-y-small', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim_small, hidden=hidden_small
+    #     ),
+    #     wX=0, reduce_Y=Go_pca
+    # ),
+    # yield 'R2I1O-XY-small', NN2I1OReg(
+    #     model=FF2I1O(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
+    #     )
+    # ),
     #yield 'R2I1O-xy', NN2I1OReg(
     #    model=FF2I1O(
     #        Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
@@ -125,16 +132,16 @@ def methods():
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
         )
     ),
-    yield 'R3-XYZ-big', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
-        )
-    ),
-    yield 'R3-XYZ-small', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
-        )
-    ),
+    # yield 'R3-XYZ-big', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
+    #     )
+    # ),
+    # yield 'R3-XYZ-small', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
+    #     )
+    # ),
     # yield 'R3-XYZw', NN3WayReg(
     #     model=FF3W(
     #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
@@ -159,18 +166,24 @@ def methods():
         ),
         wZ=0
     ),
-    yield 'R3-XY-big', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
-        ),
-        wZ=0
-    ),
-    yield 'R3-XY-small', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
-        ),
-        wZ=0
-    ),
+    # yield 'R3-XY-dr', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden, dropout=0.2
+    #     ),
+    #     wZ=0
+    # ),
+    # yield 'R3-XY-big', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
+    #     ),
+    #     wZ=0
+    # ),
+    # yield 'R3-XY-small', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
+    #     ),
+    #     wZ=0
+    # ),
     # for i in range(5):
     #     yield f'R3-XY{i}', NN3WayReg(
     #         model=FF3W(
@@ -194,12 +207,12 @@ def methods():
     # yield 'R3-XY-v8', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
     # yield 'R3-XY-v9', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
     # yield 'R3-XY-v10', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-ZY', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0
-    # ),
+    yield 'R3-ZY', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        ),
+        wX=0
+    ),
     # for i in range(5):
     #     yield f'R3-ZY{i}', NN3WayReg(
     #         model=FF3W(
@@ -207,12 +220,12 @@ def methods():
     #         ),
     #         wX=0
     #     ),
-    # yield 'R3-Y', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0, wZ=0
-    # ),
+    yield 'R3-Y', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+        ),
+        wX=0, wZ=0
+    ),
     # for i in range(5):
     #     yield f'R3-Y{i}', NN3WayReg(
     #         model=FF3W(
@@ -255,13 +268,13 @@ def methods():
     #     reduce_X=Gi_pca, reduce_Z=Vin_pca, reduce_Y=Go_pca,
     #     wX=0
     # ),
-    # yield 'R3-y', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     reduce_Y=Go_pca,
-    #     wX=0, wZ=0
-    # ),
+    yield 'R3-y', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+        ),
+        reduce_Y=Go_pca,
+        wX=0, wZ=0
+    ),
     # for i in range(5):
     #     yield f'R3-y{i}', NN3WayReg(
     #         model=FF3W(
@@ -271,11 +284,31 @@ def methods():
     #         wX=0, wZ=0
     #     ),
 
+def validation_idx(X, n_groups, val_prop=0.1, random_state=0):
+    """
+    Generates a stratified validation split based on cluster labels
+
+    :param X: input data
+    :param n_groups: number of groups
+    :param val_prop: fractions of elements to be taken as validation data
+    :param random_state: int, for replicability
+    :return: a mask indicating 1=in_validation 0=not_in_validation
+    """
+    kmeans = KMeans(n_clusters=n_groups)
+    kmeans.fit(X)
+    cluster_labels = kmeans.predict(X)
+    index = np.arange(X.shape[0])
+    train_idx, val_idx = train_test_split(index, test_size=val_prop, random_state=random_state, stratify=cluster_labels)
+    in_val_mask = np.zeros(len(cluster_labels), dtype=bool)
+    in_val_mask[val_idx]=True
+    return in_val_mask
+
+
 if __name__ == '__main__':
     conf=Configuration(
         show_std=False,
         mean_prec=5,
-        resizebox=.3,
+        resizebox=.6,
         stat_test=None,
         with_mean=True,
         with_rank=True
@@ -288,74 +321,106 @@ if __name__ == '__main__':
     path_n2 = '../data/training/dataset_for_nitrogen.csv'
     Vin, Gin, Gout = load_both_data(path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True)
 
+    val_mask = validation_idx(Gin, n_groups=5, val_prop=0.1, random_state=0)
+
     V_dim, Gi_dim, Go_dim = Vin.shape[1], Gin.shape[1], Gout.shape[1]
 
     errors = defaultdict(lambda :[])
-    test_names = []
+    test_names = np.asarray([f'model{i+1}' for i in range(len(Vin))])
 
     if selected_tests is None:
         selected_tests = list(np.arange(len(Vin))+1)  # default: all tests
+
+    metalearner = MetaLearner(
+        base_methods=['R3-XY', 'R3-XYZ', 'R3-y', 'R3-Y', 'R3-ZY'],
+        prediction_dir='../results/val_predictions',
+        X=Gin,
+        Xnames=test_names
+    )
 
     loo = LeaveOneOut()
     for (train_idx, test_idx) in loo.split(Gin):
         i = test_idx[0]
         if (i+1) not in selected_tests: continue
 
-        test_name = f'model{i+1}'
+        test_name = test_names[i]
         print(f'{test_name}:')
 
-        Vin_tr, Gin_tr, Gout_tr = Vin[train_idx], Gin[train_idx], Gout[train_idx]
+        Vin_tr, Gin_tr, Gout_tr, in_val = Vin[train_idx], Gin[train_idx], Gout[train_idx], val_mask[train_idx]
         Vin_te, Gin_te, Gout_te = Vin[test_idx],  Gin[test_idx],  Gout[test_idx]
+
+        if not with_validation:
+            in_val = None
 
         for method, reg in methods():
             print(f'{method=}')
             # if only_models is not None and method not in only_models: continue
             method_errors = ResultTracker(f'../results/errors/{method}.pkl')
             method_convergence = ResultTracker(f'../results/convergence/{method}.pkl')
-            method_y_loss = ResultTracker(f'../results/convergence/{method}_yloss.pkl')
+            method_val_predictions = ResultTracker(f'../results/val_predictions/{method}.pkl')
+            # method_y_loss = ResultTracker(f'../results/convergence/{method}_yloss.pkl')
 
             if test_name not in method_errors:
                 if only_tables:
                     continue
                 if method in baselines:  # simple baseline
-                    reg.fit(Gin_tr, Gout_tr)
-                    Gout_pred = reg.predict(Gin_te)
+                    if isinstance(reg, RandomForestXZYPCA):
+                        reg.fit(Gin_tr, Vin_tr, Gout_tr)
+                        Gout_pred = reg.predict(Gin_te, Vin_te)
+                    else:
+                        reg.fit(Gin_tr, Gout_tr)
+                        Gout_pred = reg.predict(Gin_te)
                     partial_path = f'../results/plots/{method}/{str(test_name)}'
                     plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
 
                 else:  # 3way prediction
                     # continue
-                    reg.fit(Gin_tr, Gout_tr, Vin_tr)
+                    reg.fit(Gin_tr, Gout_tr, Vin_tr, in_val)
 
                     partial_path = f'../results/plots/{method}/{str(test_name)}'
                     if isinstance(reg, NN3WayReg):
                         Gout_pred, Gin_rec, Vin_rec = reg.predict(Gin_te, return_XZ=True)
-                        plot_result(Vin_te[0], Vin_rec[0], partial_path+'-Vin.png', err_fun=mse, scale_err=1e6)
-                        plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
+                        plot_result(Vin_te[0], Vin_rec[0], partial_path +'-Vin.png', err_fun=mse, scale_err=1e6)
                     elif isinstance(reg, NN2I1OReg):
+                        raise ValueError('To be adapted')
                         Gout_pred, Gin_rec = reg.predict(Gin_te, Vin_te, return_X=True)
-                        plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
-                    else:
-                        Gout_pred = reg.predict(Gin_te)
-
+                    plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
                     plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
-
 
                     if hasattr(reg, 'best_loss'):
                         method_convergence.update(test_name, reg.best_loss)
-                    if hasattr(reg, 'best_loss_y'):
-                        method_y_loss.update(test_name, reg.best_loss_y)
+                    # save predictions for validation data
+                    select = in_val if (in_val is not None) else np.ones(Gin_tr.shape[0], dtype=bool)
+                    if isinstance(reg, NN3WayReg):
+                        Gout_val_pred = reg.predict(Gin_tr[select], return_XZ=False)
+                        method_val_predictions.update(test_name, {
+                            'test_names': test_names[train_idx][select],
+                            'predictions': Gout_val_pred,
+                            'errors': mse(Gout_tr[select], Gout_val_pred, average=False)
+                        })
 
                 error_mean = mse(Gout_te, Gout_pred)
                 method_errors.update(test_name, error_mean)
-
 
             else:
                 error_mean = method_errors.get(test_name)
 
             errors[method].append(error_mean)
-            table.add(benchmark=f'model{i+1:3d}', method=method, v=error_mean*error_scale)
+            table.add(benchmark=test_name,
+                      # f'model{i+1:3d}',
+                      method=method, v=error_mean*error_scale)
 
+        # meta learner
+        chosen_method = metalearner.predict(test_name)
+        print(f'for test={test_name} I would chose {chosen_method}')
+
+
+    # reorder by cluster-id
+    # groups, _ = cluser_curves(Gin, n_clusters=5)
+    # order = []
+    # for g in sorted(np.unique(groups)):
+    #     order.extend(list(test_names[groups==g]))
+    # table.reorder_benchmarks(order)
     table.latexPDF(table_path, landscape=False)
 
 

@@ -5,25 +5,21 @@ from data import *
 from utils import *
 from tqdm import tqdm
 
-reduce='input'  # 8 dimenions
+reduce='volume'
 # reduce='nitrogen'
 # reduce='hydrogen'
 
 components=8
 
-path_nitrogen = f'../../data/training/dataset_for_nitrogen.csv'
-path_hydrogen = f'../../data/training/dataset_for_hydrogen.csv'
+path_n2 = f'../../data/training/dataset_for_nitrogen.csv'
+path_h2 = f'../../data/training/dataset_for_hydrogen.csv'
+Vin, Gin, Gout = load_both_data(path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True)
 
-if reduce=='input':
-    X, _ = load_data(path_nitrogen, cumulate_x=True, normalize=True)
-    Z = X
-elif reduce=='nitrogen':
-    _, y = load_data(path_nitrogen, cumulate_x=True, normalize=True)
-    Z = y
-elif reduce=='hydrogen':
-    _, y = load_data(path_hydrogen, cumulate_x=True, normalize=True)
-    Z = y
-
+Z = {
+    'volume': Vin,
+    'nitrogen': Gin,
+    'hydrogen': Gout
+}[reduce]
 
 errors = []
 loo = LeaveOneOut()
@@ -38,7 +34,7 @@ for i, (train, test) in tqdm(enumerate(loo.split(Z)), desc='generating reconstru
     Zte_ = pca.transform(Zte)
     Zte_ = pca.inverse_transform(Zte_)
 
-    plot_result(Zte[0], Zte_[0], f'../reconstruction/{reduce}/PCA{components}/{str(test_name)}.png', err_fun=mse)
+    plot_result(Zte[0], Zte_[0], f'../../reconstruction/{reduce}/PCA{components}/{str(test_name)}.png', err_fun=mse)
     errors.append(mse(Zte[0], Zte_[0]))
 
 print(f'Process ended. Reconstruction with {components=} has mse={np.mean(errors)}')
