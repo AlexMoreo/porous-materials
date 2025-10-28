@@ -66,18 +66,23 @@ def methods():
     #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
     #     )
     # ),
+    yield 'R3-XYZ-xl', NN3WayReg(
+        model=FF3W(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim*2, hidden=hidden
+        )
+    ),
     # yield 'R3-Xyz', NN3WayReg(
     #     model=FF3W(
     #         Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
     #     ),
     #     Z_red=V_pca, Y_red=Go_pca
     # ),
-    yield 'R3-XYZ-s', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        ),
-        smooth_reg_weight=0.001, monotonic_Z=True, smooth_prediction=True
-    ),
+    # yield 'R3-XYZ-s', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     smooth_reg_weight=0.001, monotonic_Z=True, smooth_prediction=True
+    # ),
     # yield 'R3-XYZ-big', NN3WayReg(
     #     model=FF3W(
     #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
