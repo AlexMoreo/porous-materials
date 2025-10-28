@@ -239,9 +239,9 @@ class NN3WayReg:
             self.device = 'cpu'
 
         if self.smooth_prediction:
-            smooth_length = 5
-            self.smooth_layer = nn.Conv1d(1, 1, kernel_size=smooth_length, padding='same', bias=False)
-            self.smooth_layer.weight.data.fill_(1 / smooth_length)
+            self.smooth_length = 5
+            self.smooth_layer = nn.Conv1d(1, 1, kernel_size=self.smooth_length, padding=0, bias=False)
+            self.smooth_layer.weight.data.fill_(1 / self.smooth_length)
 
     def fit(self, X, Y, Z, in_val=None):
 
@@ -340,13 +340,15 @@ class NN3WayReg:
             Z_hat = self.monotonic(Z_hat)
         return Y_hat, Z_hat
 
-    def post_smooth(self, Y_hat):
+    def post_smooth(self, output):
         if self.smooth_prediction:
-            output = torch.tensor(Y_hat).unsqueeze(1)
+            pad = self.smooth_length // 2
+            output = torch.tensor(output).unsqueeze(1)
+            output = F.pad(output, (pad, pad), mode='reflect')
             output = self.smooth_layer(output)
             return output.squeeze(1).detach().cpu().numpy()
         else:
-            return Y_hat
+            return output
 
     def monotonic(self, z):
         # Predicts increments only
@@ -372,6 +374,7 @@ class NN3WayReg:
 
                 Z_recons = Z_recons.detach().cpu().numpy()
                 Z_recons = self.adapt_Z.inverse_transform(Z_recons)
+                Z_recons = self.post_smooth(Z_recons)
                 return Y_predicted, X_recons, Z_recons
             return Y_predicted
 

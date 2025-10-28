@@ -61,17 +61,17 @@ def methods():
     yield 'RFy', DirectRegression(rf, y_red=Go_pca)
     # yield 'RFZY', TwoStepRegression(rf)
     yield '1NN', NearestNeighbor()
-    yield 'R3-XYZ', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-        )
-    ),
-    yield 'R3-Xyz', NN3WayReg(
-        model=FF3W(
-            Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-        ),
-        Z_red=V_pca, Y_red=Go_pca
-    ),
+    # yield 'R3-XYZ', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
+    #     )
+    # ),
+    # yield 'R3-Xyz', NN3WayReg(
+    #     model=FF3W(
+    #         Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
+    #     ),
+    #     Z_red=V_pca, Y_red=Go_pca
+    # ),
     yield 'R3-XYZ-s', NN3WayReg(
         model=FF3W(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
@@ -331,12 +331,8 @@ if __name__ == '__main__':
                     # continue
                     reg.fit(Gin_tr, Gout_tr, Vin_tr, in_val)
 
-                    if isinstance(reg, NN3WayReg):
-                        Gout_pred, Gin_rec, Vin_rec = reg.predict(Gin_te, return_XZ=True)
-                        plot_result(Vin_te[0], Vin_rec[0], partial_path +'-Vin.png', err_fun=mse, scale_err=1e6)
-                    elif isinstance(reg, NN2I1OReg):
-                        raise ValueError('To be adapted')
-                        Gout_pred, Gin_rec = reg.predict(Gin_te, Vin_te, return_X=True)
+                    Gout_pred, Gin_rec, Vin_rec = reg.predict(Gin_te, return_XZ=True)
+                    plot_result(Vin_te[0], Vin_rec[0], partial_path +'-Vin.png', err_fun=mse, scale_err=1e6)
                     plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
                     plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
 
