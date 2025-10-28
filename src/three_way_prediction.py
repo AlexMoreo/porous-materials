@@ -13,11 +13,11 @@ from regression import NN3WayReg, DirectRegression, NearestNeighbor, MetaLearner
 from result_table.src.format import Configuration
 from result_table.src.table import LatexTable
 from utils import mse, ResultTracker, plot_result
-
+import sys
 
 results_dir = '../results'
 # only_tables = True
-only_tables = False
+only_tables = "tables" in sys.argv
 
 with_validation = False
 
