@@ -24,7 +24,7 @@ methods = ['RFY', 'RFy', '1NN',  #'AE-ZY',
            # 'R3-XYZ', 'R3-XYZ-tiny', 'R3-XYZ-xl', 'R3-Xyz', 'R3-Xyz-s',
            # 'R3-YZ', 'R3-YZ-tiny', 'R3-YZ-xl', 'R3-yz', #'R3-yz-s',
            #'AE-ZY', 'AE-zy',
-           'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'Ensamble', 'Ensamble-m'
+           'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'PAEZ' , 'PAEZZ',  'Ensamble', 'Ensamble3',  'Ensamble-m'
            ]
 
 
@@ -43,7 +43,8 @@ all_ids = test_names
 # selected_ids = list(range(10,40))
 # methods = ['R3-XY']+[f'R3-XY-v{i+1}' for i in range(10)]
 methods_path = '../../results/plots'
-gas_suffix = '-Gout'  # gas out representation
+# gas_suffix = '-Gout'  # gas out representation
+gas_suffix = '-Vin'  # gas out representation
 
 n_ids = len(all_ids)
 batch_size = 5  # creates grids of 20 x n_models
@@ -81,7 +82,7 @@ for batch_i in range(n_batches):
                 axes[i, j].set_ylabel(f"Model {model_id}", fontsize=12)
 
 
-    path_out = f'../../results/hydrogen{gas_suffix}_comparison_{from_}-{to_}.png'
+    path_out = f'../../results/{gas_suffix}/plot_comparison_{from_}-{to_}.png'
     print(f'plots generated, saving images in {path_out}...', end='')
     plt.tight_layout(pad=0.)
     plt.savefig(path_out,

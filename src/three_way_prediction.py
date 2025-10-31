@@ -18,7 +18,7 @@ import sys
 results_dir = '../results'
 # only_tables = True
 only_tables =  "tables" in sys.argv
-add_ref_color=True
+add_ref_color=False
 # chosen_test = 'model35'
 # chosen_test = 'model53'
 # chosen_test = 'model70'
@@ -89,6 +89,12 @@ def methods():
         ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
     ),
+    yield 'PAEZ', NN3WayReg(
+        model=AE3(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    ),
     yield 'PAEZZ', NN3WayReg(
         model=AE3(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
@@ -97,6 +103,7 @@ def methods():
     ),
     yield 'Ensamble', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
     # yield 'Ensamble2', Ensemble(path=results_dir, methods=['1NN', 'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
+    yield 'Ensamble3', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'PAEZ', 'PAEZZ'])
     yield 'Ensamble-m', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'], agg='mean')
 
 
@@ -197,50 +204,51 @@ if __name__ == '__main__':
                         reg.fit(Gin_tr, Gout_tr, Vin_tr)
                     else:
                         reg.fit(Gin_tr, Gout_tr)
+
                     if isinstance(reg, NearestNeighbor):
                         Gout_pred, Vout_pred = reg.predict(Gin_te)
                     else:
                         Gout_pred, Vout_pred = reg.predict(Gin_te), None
-                    plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
-                    if Vout_pred is not None:
-                        plot_result(Vin_te[0], Vout_pred[0], partial_path +'-Vin.png', err_fun=mse, scale_err=1e6)
-                    method_test_predictions.update(test_name, {
-                        'Gout': Gout_pred,
-                        'Vout': Vout_pred
-                    })
+
                 elif isinstance(reg, Ensemble):
                     Gout_pred, Vout_pred = reg.predict(test_name)
                     if Gout_pred is None:
+                        print('\tensemble found incomplete data')
                         continue
-                    plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
-                    if Vout_pred is not None:
-                        plot_result(Vin_te[0], Vout_pred[0], partial_path + '-Vin.png', err_fun=mse, scale_err=1e6)
+
                 else:  # 3way prediction
                     # continue
                     reg.fit(Gin_tr, Gout_tr, Vin_tr, in_val) #, show_test_model=(Gin_te, Gout_te))
+                    Gout_pred, Gin_rec, Vout_pred = reg.predict(Gin_te, return_XZ=True)
 
-                    Gout_pred, Gin_rec, Vin_rec = reg.predict(Gin_te, return_XZ=True)
-                    method_test_predictions.update(test_name, {
-                        'Gout': Gout_pred,
-                        'Vout': Vin_rec
-                    })
-                    plot_result(Vin_te[0], Vin_rec[0], partial_path +'-Vin.png', err_fun=mse, scale_err=1e6)
+                    #plotting
                     if Gin_rec is not None:
                         plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
-                    plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
 
-                    if hasattr(reg, 'best_loss'):
-                        method_convergence.update(test_name, reg.best_loss)
                     # save predictions for validation data
-                    select = in_val if (in_val is not None) else np.ones(Gin_tr.shape[0], dtype=bool)
-                    if isinstance(reg, NN3WayReg):
-                        Gout_val_pred = reg.predict(Gin_tr[select], return_XZ=False)
-                        method_val_predictions.update(test_name, {
-                            'test_names': test_names[train_idx][select],
-                            'predictions': Gout_val_pred,
-                            'errors': mse(Gout_tr[select], Gout_val_pred, average=False)
-                        })
+                    # select = in_val if (in_val is not None) else np.ones(Gin_tr.shape[0], dtype=bool)
+                    # if isinstance(reg, NN3WayReg):
+                    #     Gout_val_pred = reg.predict(Gin_tr[select], return_XZ=False)
+                    #     method_val_predictions.update(test_name, {
+                    #         'test_names': test_names[train_idx][select],
+                    #         'predictions': Gout_val_pred,
+                    #         'errors': mse(Gout_tr[select], Gout_val_pred, average=False)
+                    #     })
 
+                # gather result data
+                method_test_predictions.update(test_name, {
+                    'Gout': Gout_pred,
+                    'Vout': Vout_pred
+                })
+                if hasattr(reg, 'best_loss'):
+                    method_convergence.update(test_name, reg.best_loss)
+
+                # plotting
+                plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
+                if Vout_pred is not None:
+                    plot_result(Vin_te[0], Vout_pred[0], partial_path + '-Vin.png', err_fun=mse, scale_err=1e6)
+
+                # save error results
                 error_mean = mse(Gout_te, Gout_pred)
                 method_errors.update(test_name, error_mean)
 
@@ -266,6 +274,7 @@ if __name__ == '__main__':
     if add_ref_color:
         for test in test_names:
             table.add(benchmark=test, method='REF', v=1.)
+
     table.latexPDF(table_path, landscape=False)
 
 
