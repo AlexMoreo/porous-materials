@@ -67,7 +67,7 @@ for gas_suffix in ['Vin', 'Gout']:
         # --- Cargar y mostrar cada imagen ---
         for i, model_id in tqdm(enumerate(selected_ids), desc=f'generating plots {from_}-{to_}', total=len(selected_ids)):
             for j, method in enumerate(methods):
-                img_path = os.path.join(methods_path, method, f"{model_id}{gas_suffix}.png")
+                img_path = os.path.join(methods_path, method, f"{model_id}-{gas_suffix}.png")
                 if os.path.exists(img_path):
                     img = mpimg.imread(img_path)
                     axes[i, j].imshow(img)
