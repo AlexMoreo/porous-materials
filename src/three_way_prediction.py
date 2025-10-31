@@ -84,24 +84,24 @@ def methods():
         ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
     ),
-    # yield 'PAEXY', NN3WayReg( # nomenclature is wrong, should be PAEZY; constructor is wrong, shoud be AE (relaunching...)
-    #     model=AE2(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-    #     ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-    #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    # ),
-    # yield 'PAEZY', NN3WayReg( # relauching... it was AE2 instead of AE
-    #     model=AE(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-    #     ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-    #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    # ),
-    # yield 'PAEZZY', NN3WayReg( # relauching... it was AE2 instead of AE, with more preasure towards Z
-    #     model=AE(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-    #     ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-    #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    # ),
+    yield 'PAEXY', NN3WayReg( # nomenclature is wrong, should be PAEZY; constructor is wrong, shoud be AE (relaunching...)
+        model=AE2(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    ),
+    yield 'PAEZY', NN3WayReg( # relauching... it was AE2 instead of AE
+        model=AE(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    ),
+    yield 'PAEZZY', NN3WayReg( # relauching... it was AE2 instead of AE, with more preasure towards Z
+        model=AE(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    ),
     # yield 'PAEZ', NN3WayReg(
     #     model=AE3(
     #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
