@@ -43,53 +43,56 @@ all_ids = test_names
 # selected_ids = list(range(10,40))
 # methods = ['R3-XY']+[f'R3-XY-v{i+1}' for i in range(10)]
 methods_path = '../../results/plots'
-# gas_suffix = '-Gout'  # gas out representation
-gas_suffix = '-Vin'  # gas out representation
+for gas_suffix in ['Vin', 'Gout']:
+    print(f'Generating plots for {gas_suffix}')
+    gas_path = f'../../results/plots-{gas_suffix}'
+    os.makedirs(gas_path, exist_ok=True)
 
-n_ids = len(all_ids)
-batch_size = 5  # creates grids of 20 x n_models
-n_batches = (n_ids//batch_size) + (1 if n_ids%batch_size>1 else 0)
+    n_ids = len(all_ids)
+    batch_size = 5  # creates grids of 20 x n_models
+    n_batches = (n_ids//batch_size) + (1 if n_ids%batch_size>1 else 0)
 
-for batch_i in range(n_batches):
+    for batch_i in range(n_batches):
 
-    selected_ids = all_ids[(batch_i*batch_size):((batch_i+1)*batch_size)]
+        selected_ids = all_ids[(batch_i*batch_size):((batch_i+1)*batch_size)]
 
-    # --- Crea figura y subplots ---
-    n_rows = len(selected_ids)
-    n_cols = len(methods)
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 2.5 * n_rows), constrained_layout=False)
-    plt.subplots_adjust(wspace=0.0, hspace=0.0)
+        # --- Crea figura y subplots ---
+        n_rows = len(selected_ids)
+        n_cols = len(methods)
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 2.5 * n_rows), constrained_layout=False)
+        plt.subplots_adjust(wspace=0.0, hspace=0.0)
 
-    from_, to_ = selected_ids[0], selected_ids[-1]
+        from_, to_ = selected_ids[0], selected_ids[-1]
 
-    # --- Cargar y mostrar cada imagen ---
-    for i, model_id in tqdm(enumerate(selected_ids), desc=f'generating plots {from_}-{to_}', total=len(selected_ids)):
-        for j, method in enumerate(methods):
-            img_path = os.path.join(methods_path, method, f"{model_id}{gas_suffix}.png")
-            if os.path.exists(img_path):
-                img = mpimg.imread(img_path)
-                axes[i, j].imshow(img)
-            else:
-                axes[i, j].text(0.5, 0.5, "No image", ha='center', va='center', fontsize=12)
-            axes[i, j].axis('off')
+        # --- Cargar y mostrar cada imagen ---
+        for i, model_id in tqdm(enumerate(selected_ids), desc=f'generating plots {from_}-{to_}', total=len(selected_ids)):
+            for j, method in enumerate(methods):
+                img_path = os.path.join(methods_path, method, f"{model_id}{gas_suffix}.png")
+                if os.path.exists(img_path):
+                    img = mpimg.imread(img_path)
+                    axes[i, j].imshow(img)
+                else:
+                    axes[i, j].text(0.5, 0.5, "No image", ha='center', va='center', fontsize=12)
+                axes[i, j].axis('off')
 
-            # column titles (only first)
-            if i == 0:
-                axes[i, j].set_title(method, fontsize=14, weight='bold')
+                # column titles (only first)
+                if i == 0:
+                    axes[i, j].set_title(method, fontsize=14, weight='bold')
 
-            # row labels (only first)
-            if j == 0:
-                axes[i, j].set_ylabel(f"Model {model_id}", fontsize=12)
+                # row labels (only first)
+                if j == 0:
+                    axes[i, j].set_ylabel(f"Model {model_id}", fontsize=12)
 
 
-    path_out = f'../../results/{gas_suffix}/plot_comparison_{from_}-{to_}.png'
-    print(f'plots generated, saving images in {path_out}...', end='')
-    plt.tight_layout(pad=0.)
-    plt.savefig(path_out,
-        dpi=300,
-        bbox_inches="tight",
-        pad_inches=0.1,
-    )
-    print('[Done]')
+        path_out = f'{gas_path}/plot_comparison_{from_}-{to_}.png'
 
-print('[Done!]')
+        print(f'plots generated, saving images in {path_out}...', end='')
+        plt.tight_layout(pad=0.)
+        plt.savefig(path_out,
+            dpi=300,
+            bbox_inches="tight",
+            pad_inches=0.1,
+        )
+        print('[Done]')
+
+    print('[Done!]')
