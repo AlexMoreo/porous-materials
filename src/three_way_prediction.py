@@ -109,6 +109,8 @@ def methods():
     #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
     # ),
     yield 'Ensamble', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
+    yield 'EnsRedo', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZY'])
+    yield 'EnsRedoZZ', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZZY'])
     # yield 'Ensamble2', Ensemble(path=results_dir, methods=['1NN', 'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
     # yield 'Ensamble3', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'PAEZ', 'PAEZZ'])
     # yield 'Ensamble-m', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'], agg='mean')
