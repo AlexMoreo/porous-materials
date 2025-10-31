@@ -4,9 +4,11 @@ import os
 import numpy as np
 from tqdm import tqdm
 
+from data import load_both_data
+
 # --- methods and paths ---
 # gas = 'nitrogen'
-gas = 'hydrogen'
+# gas = 'hydrogen'
 
 baseline_path = None
 # methods = ['RF', 'RFy', 'RFxy', 'R3-XYZ', 'R3-XYZ-L0', 'R3-Xyz-L0',
@@ -17,16 +19,24 @@ baseline_path = None
 #            # + [f'R3-Y{i}' for i in range(5)]
 #          + [f'R3-y{i}' for i in range(5)]
 # )
-def var_size(method): return [f'{method}-small', method, f'{method}-big']
-methods = ['RF', 'RFy', 'RFxy', 'RFXZY','RFXZy','RFxzy', '1NN', #*var_size('R2I1O-Y'),
-           #*var_size('R2I1O-y'),
-           # *var_size('R2I1O-XY'), *var_size('R3-XY')] #, *var_size('R3-XY')]
-           'R3-y', 'R3-XY', 'R3-XYZ'
+# def var_size(method): return [f'{method}-small', method, f'{method}-big']
+methods = ['RFY', 'RFy', '1NN',  #'AE-ZY',
+           # 'R3-XYZ', 'R3-XYZ-tiny', 'R3-XYZ-xl', 'R3-Xyz', 'R3-Xyz-s',
+           # 'R3-YZ', 'R3-YZ-tiny', 'R3-YZ-xl', 'R3-yz', #'R3-yz-s',
+           #'AE-ZY', 'AE-zy',
+           'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'Ensamble', 'Ensamble-m'
            ]
 
 
 # --- selected models to display ---
-all_ids = list(range(1,112))
+from three_way_prediction import load_data
+path_h2 = '../../data/training/dataset_for_hydrogen.csv'
+path_n2 = '../../data/training/dataset_for_nitrogen.csv'
+test_names, *_ = load_both_data(
+    path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True,
+    return_index=True, exclude_id=['model41', 'model45']
+)
+all_ids = test_names
 # selected_ids = [1, 9, 17, 26, 34, 38, 48, 53, 62, 67, 73, 80, 89, 93, 105]
 # selected_ids = [3,10,35,37,68,70]
 # selected_ids = [1,2,3,4]
@@ -54,10 +64,7 @@ for batch_i in range(n_batches):
     # --- Cargar y mostrar cada imagen ---
     for i, model_id in tqdm(enumerate(selected_ids), desc=f'generating plots {from_}-{to_}', total=len(selected_ids)):
         for j, method in enumerate(methods):
-            if j==0 and baseline_path is not None: #baseline method
-                img_path = os.path.join(baseline_path, f"model{model_id:02d}.png")
-            else:
-                img_path = os.path.join(methods_path, method, f"model{model_id}{gas_suffix}.png")
+            img_path = os.path.join(methods_path, method, f"{model_id}{gas_suffix}.png")
             if os.path.exists(img_path):
                 img = mpimg.imread(img_path)
                 axes[i, j].imshow(img)
@@ -74,7 +81,7 @@ for batch_i in range(n_batches):
                 axes[i, j].set_ylabel(f"Model {model_id}", fontsize=12)
 
 
-    path_out = f'../../results/{gas}{gas_suffix}_comparison_{from_}-{to_}.png'
+    path_out = f'../../results/hydrogen{gas_suffix}_comparison_{from_}-{to_}.png'
     print(f'plots generated, saving images in {path_out}...', end='')
     plt.tight_layout(pad=0.)
     plt.savefig(path_out,

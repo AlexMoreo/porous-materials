@@ -7,17 +7,22 @@ from sklearn.model_selection import LeaveOneOut, train_test_split
 from os.path import join
 from data import load_both_data
 from data_analysis.curve_clustering import cluser_curves
-from nn_3w_modules import FF3W
+from nn_3w_modules import FF3W, AE, AE2, AE3
 from regression import NN3WayReg, DirectRegression, NearestNeighbor, MetaLearner, \
-    TwoStepRegression
+    TwoStepRegression, Ensemble
 from result_table.src.format import Configuration
 from result_table.src.table import LatexTable
 from utils import mse, ResultTracker, plot_result
 import sys
 
 results_dir = '../results'
-only_tables = True
-# only_tables = "tables" in sys.argv
+# only_tables = True
+only_tables =  "tables" in sys.argv
+add_ref_color=True
+# chosen_test = 'model35'
+# chosen_test = 'model53'
+# chosen_test = 'model70'
+chosen_test = None
 
 with_validation = False
 
@@ -59,187 +64,41 @@ def methods():
     rf = RandomForestRegressor()
     yield 'RFY', DirectRegression(rf),
     yield 'RFy', DirectRegression(rf, y_red=Go_pca)
-    # yield 'RFZY', TwoStepRegression(rf)
     yield '1NN', NearestNeighbor()
-    # yield 'R3-XYZ', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     )
-    # ),
-    yield 'R3-XYZ-s', NN3WayReg(
-        model=FF3W(
-            Xdim=5, Zdim=5, Ydim=5, Ldim=20, hidden=[32]
-        ),
-        X_red=5, Z_red=5, Y_red=5,
+    yield 'PAE2zy', NN3WayReg(
+        model=AE2(
+            Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
     ),
-    # yield 'R3-XYZ-xl', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim*2, hidden=hidden
-    #     )
-    # ),
-    # yield 'R3-Xyz', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     Z_red=V_pca, Y_red=Go_pca
-    # ),
-    # yield 'R3-XYZ-s', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     smooth_reg_weight=0.001, monotonic_Z=True, smooth_prediction=True
-    # ),
-    # yield 'R3-XYZ-big', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
-    #     )
-    # ),
-    # yield 'R3-XYZ-small', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
-    #     )
-    # ),
-    # yield 'R3-XYZw', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0.1, wZ=0.1, wY=1
-    # ),
-    # yield 'R3-XYZ-L0', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=0, hidden=hidden
-    #     )
-    # ),
-    # yield 'R3-Xyz-L0', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=Vin_pca, Ydim=Go_pca, Ldim=0, hidden=hidden
-    #     ),
-    #     reduce_Z=Vin_pca, reduce_Y=Go_pca,
-    #     checkpoint_id=2
-    # ),
-    # yield 'R3-XY', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wZ=0
-    # ),
-    # yield 'R3-XY-dr', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden, dropout=0.2
-    #     ),
-    #     wZ=0
-    # ),
-    # yield 'R3-XY-big', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_big, hidden=hidden_big
-    #     ),
-    #     wZ=0
-    # ),
-    # yield 'R3-XY-small', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim_small, hidden=hidden_small
-    #     ),
-    #     wZ=0
-    # ),
-    # for i in range(5):
-    #     yield f'R3-XY{i}', NN3WayReg(
-    #         model=FF3W(
-    #             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #         ),
-    #         wZ=0
-    #     ),
-    # yield 'R3-XYw', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0.1, wZ=0
-    # ),
-    # yield 'R3-XY-v1', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-XY-v2', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-XY-v3', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-XY-v4', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-XY-v5', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-XY-v6', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-XY-v7', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-XY-v8', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-XY-v9', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-XY-v10', NN3WayReg(model=FF3W(Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden), wZ=0, checkpoint_id=1),
-    # yield 'R3-ZY', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0
-    # ),
-    # for i in range(5):
-    #     yield f'R3-ZY{i}', NN3WayReg(
-    #         model=FF3W(
-    #             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #         ),
-    #         wX=0
-    #     ),
-    # yield 'R3-Y', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     wX=0, wZ=0
-    # ),
-    # for i in range(5):
-    #     yield f'R3-Y{i}', NN3WayReg(
-    #         model=FF3W(
-    #             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=Ldim, hidden=hidden
-    #         ),
-    #         wX=0, wZ=0
-    #     ),
-    # yield 'R3-Xyz', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     reduce_Z=Vin_pca, reduce_Y=Go_pca
-    # ),
-    # yield 'R3-Xy', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     reduce_Y=Go_pca,
-    #     wZ=0
-    # ),
-    # yield 'R3-zy', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     reduce_Z=Vin_pca, reduce_Y=Go_pca,
-    #     wX=0
-    # ),
-    # for i in range(5):
-    #     yield f'R3-zy{i}', NN3WayReg(
-    #         model=FF3W(
-    #             Xdim=Gi_dim, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #         ),
-    #         reduce_Z=Vin_pca, reduce_Y=Go_pca,
-    #         wX=0
-    #     ),
-    # yield 'R3-xzy', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_pca, Zdim=Vin_pca, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     reduce_X=Gi_pca, reduce_Z=Vin_pca, reduce_Y=Go_pca,
-    #     wX=0
-    # ),
-    # yield 'R3-y', NN3WayReg(
-    #     model=FF3W(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #     ),
-    #     reduce_Y=Go_pca,
-    #     wX=0, wZ=0
-    # ),
-    # for i in range(5):
-    #     yield f'R3-y{i}', NN3WayReg(
-    #         model=FF3W(
-    #             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_pca, Ldim=Ldim, hidden=hidden
-    #         ),
-    #         reduce_Y=Go_pca,
-    #         wX=0, wZ=0
-    #     ),
+    yield 'PAE2ZY', NN3WayReg(
+        model=AE2(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    ),
+    yield 'PAExy', NN3WayReg(
+        model=AE(
+            Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
+    ),
+    yield 'PAEXY', NN3WayReg(
+        model=AE2(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    ),
+    yield 'PAEZZ', NN3WayReg(
+        model=AE3(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.01, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    ),
+    yield 'Ensamble', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
+    # yield 'Ensamble2', Ensemble(path=results_dir, methods=['1NN', 'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
+    yield 'Ensamble-m', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'], agg='mean')
+
 
 def validation_idx(X, n_groups, val_prop=0.1, random_state=0):
     """
@@ -264,7 +123,7 @@ def validation_idx(X, n_groups, val_prop=0.1, random_state=0):
 def new_table():
     table_config=Configuration(
         show_std=False,
-        mean_prec=5,
+        mean_prec=3,
         resizebox=.6,
         stat_test=None,
         with_mean=True,
@@ -308,6 +167,7 @@ if __name__ == '__main__':
     for (train_idx, test_idx) in loo.split(Gin):
         test_name = test_names[test_idx[0]]
         print(f'{test_name}:')
+        if chosen_test is not None and test_name!=chosen_test: continue
 
         Vin_tr, Gin_tr, Gout_tr, in_val = Vin[train_idx], Gin[train_idx], Gout[train_idx], val_mask[train_idx]
         Vin_te, Gin_te, Gout_te = Vin[test_idx],  Gin[test_idx],  Gout[test_idx]
@@ -316,11 +176,13 @@ if __name__ == '__main__':
             in_val = None
 
         for method, reg in methods():
-            print(f'{method=}')
+            if not only_tables:
+                print(f'{method=}')
             # if only_models is not None and method not in only_models: continue
             method_errors = ResultTracker(join(results_dir, f'errors/{method}.pkl'))
             method_convergence = ResultTracker(join(results_dir, f'convergence/{method}.pkl'))
             method_val_predictions = ResultTracker(join(results_dir, f'val_predictions/{method}.pkl'))
+            method_test_predictions = ResultTracker(join(results_dir, f'test_predictions/{method}.pkl'))
 
             if test_name not in method_errors:
 
@@ -331,20 +193,40 @@ if __name__ == '__main__':
                 partial_path = join(results_dir, f'plots/{method}/{str(test_name)}')
 
                 if method in baselines:  # simple baseline
-                    if isinstance(reg, TwoStepRegression):
+                    if isinstance(reg, TwoStepRegression) or isinstance(reg, NearestNeighbor):
                         reg.fit(Gin_tr, Gout_tr, Vin_tr)
                     else:
                         reg.fit(Gin_tr, Gout_tr)
-                    Gout_pred = reg.predict(Gin_te)
+                    if isinstance(reg, NearestNeighbor):
+                        Gout_pred, Vout_pred = reg.predict(Gin_te)
+                    else:
+                        Gout_pred, Vout_pred = reg.predict(Gin_te), None
                     plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
-
+                    if Vout_pred is not None:
+                        plot_result(Vin_te[0], Vout_pred[0], partial_path +'-Vin.png', err_fun=mse, scale_err=1e6)
+                    method_test_predictions.update(test_name, {
+                        'Gout': Gout_pred,
+                        'Vout': Vout_pred
+                    })
+                elif isinstance(reg, Ensemble):
+                    Gout_pred, Vout_pred = reg.predict(test_name)
+                    if Gout_pred is None:
+                        continue
+                    plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
+                    if Vout_pred is not None:
+                        plot_result(Vin_te[0], Vout_pred[0], partial_path + '-Vin.png', err_fun=mse, scale_err=1e6)
                 else:  # 3way prediction
                     # continue
-                    reg.fit(Gin_tr, Gout_tr, Vin_tr, in_val)
+                    reg.fit(Gin_tr, Gout_tr, Vin_tr, in_val) #, show_test_model=(Gin_te, Gout_te))
 
                     Gout_pred, Gin_rec, Vin_rec = reg.predict(Gin_te, return_XZ=True)
+                    method_test_predictions.update(test_name, {
+                        'Gout': Gout_pred,
+                        'Vout': Vin_rec
+                    })
                     plot_result(Vin_te[0], Vin_rec[0], partial_path +'-Vin.png', err_fun=mse, scale_err=1e6)
-                    plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
+                    if Gin_rec is not None:
+                        plot_result(Gin_te[0], Gin_rec[0], partial_path + '-Gin.png', err_fun=mse, scale_err=1e6)
                     plot_result(Gout_te[0], Gout_pred[0], partial_path + '-Gout.png', err_fun=mse, scale_err=1e6)
 
                     if hasattr(reg, 'best_loss'):
@@ -381,6 +263,9 @@ if __name__ == '__main__':
     # for g in sorted(np.unique(groups)):
     #     order.extend(list(test_names[groups==g]))
     # table.reorder_benchmarks(order)
+    if add_ref_color:
+        for test in test_names:
+            table.add(benchmark=test, method='REF', v=1.)
     table.latexPDF(table_path, landscape=False)
 
 

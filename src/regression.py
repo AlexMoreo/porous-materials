@@ -13,8 +13,9 @@ from os.path import join
 import torch.nn.functional as F
 from sklearn.base import clone, BaseEstimator
 from sklearn.decomposition import PCA
-
+import matplotlib.pyplot as plt
 import utils
+import time
 
 
 class PCAadapt:
@@ -211,6 +212,7 @@ class NN3WayReg:
                  wX=1, wY=1, wZ=1,
                  monotonic_Z=False,
                  smooth_prediction=False,
+                 weight_decay=0,
                  checkpoint_dir='../checkpoints', checkpoint_id=None, max_epochs=np.inf):
         self.model = model
         self.lr = lr
@@ -231,6 +233,7 @@ class NN3WayReg:
             checkpoint_id = np.random.randint(low=0, high=10e8)
         self.checkpoint_id = checkpoint_id
         self.max_epochs = max_epochs
+        self.weight_decay = weight_decay
 
         if cuda:
             self.model.cuda()
@@ -243,8 +246,7 @@ class NN3WayReg:
             self.smooth_layer = nn.Conv1d(1, 1, kernel_size=self.smooth_length, padding=0, bias=False)
             self.smooth_layer.weight.data.fill_(1 / self.smooth_length)
 
-    def fit(self, X, Y, Z, in_val=None):
-
+    def fit(self, X, Y, Z, in_val=None, show_test_model=None):
         def split_val(W, adapt_W):
             W = adapt_W.fit_transform(W)
             if in_val is not None:
@@ -259,7 +261,14 @@ class NN3WayReg:
         Ytr, Yval = split_val(Y, self.adapt_Y)
         Ztr, Zval = split_val(Z, self.adapt_Z)
 
-        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        self.show_test_model = show_test_model
+        if self.show_test_model is not None:
+            Xte, Yte = self.show_test_model
+            Xte = torch.tensor(self.adapt_X.transform(Xte), dtype=torch.float32, device=self.device)
+            Yte = self.adapt_Y.transform(Yte)
+            self.show_test_model = (Xte, Yte)
+
+        optimizer = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
         PATIENCE = 5000
         best_loss = np.inf
@@ -277,7 +286,7 @@ class NN3WayReg:
             optimizer.zero_grad()
             X_recons, Z_recons, Y_predicted = self.model(Xtr)
             Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
-            loss_tr = self.loss_fn(Xtr, X_recons, Ytr, Y_predicted, Ztr, Z_recons)
+            loss_tr, loss_y = self.loss_fn(Xtr, X_recons, Ytr, Y_predicted, Ztr, Z_recons)
             loss_tr.backward()
             optimizer.step()
 
@@ -287,7 +296,7 @@ class NN3WayReg:
                 self.model.eval()
                 X_recons, Z_recons, Y_predicted = self.model(Xval)
                 Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
-                loss_val = self.loss_fn(Xval, X_recons, Yval, Y_predicted, Zval, Z_recons)
+                loss_val, loss_y_val = self.loss_fn(Xval, X_recons, Yval, Y_predicted, Zval, Z_recons)
                 losstype = 'Val'
             else:
                 # no validation: monitor the training loss instead
@@ -301,12 +310,13 @@ class NN3WayReg:
                 patience=PATIENCE
                 # save best model
                 torch.save(self.model.state_dict(), best_model_path)
+                self.show_prediction_curve(self.show_test_model, epoch)
             else:
                 patience-=1
 
             print(f'\rEpoch [{epoch + 1:05d}{"" if self.max_epochs==np.inf else f"/{self.max_epochs}"}, '
                   f'P={patience:04d}], '
-                  f'Tr-Loss: {loss_tr.item():.10f}, '
+                  f'Tr-Loss: {loss_tr.item():.10f}, Y-loss: {loss_y.item():.10f}, '
                   f'Best {losstype}-Loss: {best_loss:.10f}', end='', flush=True)
             if patience<=0:
                 print(f'\nMethod stopped after {epoch} epochs')
@@ -331,7 +341,7 @@ class NN3WayReg:
         loss = self.wY*y_loss + self.wX*x_loss + self.wZ*z_loss
         if self.reg_strength > 0:
             loss += self.reg_strength * jaggedness(Y_hat)
-        return loss
+        return loss, y_loss
 
     def post_process(self, Y_hat, Z_hat):
         if self.clip:
@@ -343,7 +353,7 @@ class NN3WayReg:
     def post_smooth(self, output):
         if self.smooth_prediction:
             pad = self.smooth_length // 2
-            output = torch.tensor(output).unsqueeze(1)
+            output = torch.tensor(output, dtype=torch.float32).unsqueeze(1)
             output = F.pad(output, (pad, pad), mode='reflect')
             output = self.smooth_layer(output)
             return output.squeeze(1).detach().cpu().numpy()
@@ -369,14 +379,57 @@ class NN3WayReg:
             Y_predicted = self.adapt_Y.inverse_transform(Y_predicted)
             Y_predicted = self.post_smooth(Y_predicted)
             if return_XZ:
-                X_recons = X_recons.detach().cpu().numpy()
-                X_recons = self.adapt_X.inverse_transform(X_recons)
+                if X_recons is not None:
+                    X_recons = X_recons.detach().cpu().numpy()
+                    X_recons = self.adapt_X.inverse_transform(X_recons)
 
                 Z_recons = Z_recons.detach().cpu().numpy()
                 Z_recons = self.adapt_Z.inverse_transform(Z_recons)
                 Z_recons = self.post_smooth(Z_recons)
                 return Y_predicted, X_recons, Z_recons
             return Y_predicted
+
+    def show_prediction_curve(self, XY, epoch):
+
+        if XY is not None:
+            X, Y = XY
+            self.model.eval()
+            _, Z_recons, Y_predicted = self.model(X)
+            Y_predicted, _ = self.post_process(Y_predicted, Z_recons)
+            Y_predicted = Y_predicted.detach().cpu().numpy()
+            Y_predicted = self.adapt_Y.inverse_transform(Y_predicted)
+            Y_predicted_smooth = self.post_smooth(Y_predicted)
+
+            Y = self.adapt_Y.inverse_transform(Y)
+
+            # Z_recons = Z_recons.detach().cpu().numpy()
+            # Z_recons = self.adapt_Z.inverse_transform(Z_recons)
+            # Z_recons = self.post_smooth(Z_recons)
+
+            if not hasattr(self, 'fig'):
+                self.fig, self.ax = plt.subplots()
+                plt.ion()
+                x_axis = np.arange(Y_predicted.shape[1])
+                self.ax.plot(x_axis, Y[0], label='Ground truth', color='black', linestyle='--')
+                self.pred_line, = self.ax.plot(x_axis, np.zeros_like(x_axis), label='Prediction', color='red')
+                self.predsmooth_line, = self.ax.plot(x_axis, np.zeros_like(x_axis), label='Smoothed Prediction', color='blue')
+                self.epoch_text = self.ax.text(0.02, 0.95, '', transform=self.ax.transAxes, fontsize=12, color='blue')
+                self.error_text = self.ax.text(0.02, 0.9, '', transform=self.ax.transAxes, fontsize=12, color='blue')
+                self.ax.legend(loc='lower right')
+                plt.show(block=False)
+
+            self.pred_line.set_ydata(Y_predicted[0])
+            self.predsmooth_line.set_ydata(Y_predicted_smooth[0])
+            self.epoch_text.set_text(f"Epoch: {epoch + 1}")
+            self.error_text.set_text(f"MSE: {utils.mse(Y, Y_predicted)*1e6:.5f}")
+
+            # self.ax.set_ylim(pred_val.min() * 1.1, pred_val.max() * 1.1)
+            self.fig.canvas.draw()
+            self.fig.canvas.flush_events()
+
+            time.sleep(0.001)
+
+
 
 
 class DirectRegression:
@@ -427,15 +480,18 @@ class NearestNeighbor:
         pass
 
     def fit(self, X, Y, Z=None):
-        assert Z is None, 'wrong value for Z, must be None'
         self.nn = NearestNeighbors(n_neighbors=1, metric='euclidean')
         self.nn.fit(X)
         self.Y = Y
+        self.Z = Z
 
     def predict(self, X):
         distances, indices = self.nn.kneighbors(X)
         nearest = indices[:,0]
-        return self.Y[nearest]
+        if self.Z is not None:
+            return self.Y[nearest], self.Z[nearest]
+        else:
+            return self.Y[nearest], None
 
 
 class MetaLearner:
@@ -482,3 +538,37 @@ class MetaLearner:
 
         return best_method
 
+
+class Ensemble:
+    def __init__(self, path, methods, agg='closest'):
+        assert agg in ['closest', 'mean'], 'unexpected aggregation mode'
+        self.path = path
+        self.methods = methods
+        self.results = {
+            method: utils.ResultTracker(join(self.path, 'test_predictions', f'{method}.pkl')) for method in methods
+        }
+        self.agg = agg
+
+    def predict(self, test_name):
+        def aggregate_curve(curve):
+            curves = []
+            for method in self.methods:
+                if test_name in self.results[method]:
+                    curves.append(self.results[method].get(test_name)[curve][0])
+            if len(curves) != len(self.methods):
+                # incomplete aggregation
+                return None
+            curves = np.asarray(curves)
+            mean_curve = curves.mean(axis=0)
+            if self.agg == 'closest':
+                errors = np.mean((curves - mean_curve)**2, axis=1)
+                smallest_pos = np.argmin(errors)
+                return curves[smallest_pos]
+            elif self.agg == 'mean':
+                return mean_curve
+
+        Gout = aggregate_curve('Gout')
+        Vout = aggregate_curve('Vout')
+        if Gout is None:
+            return None, None
+        return Gout.reshape(1,-1), Vout.reshape(1,-1)
