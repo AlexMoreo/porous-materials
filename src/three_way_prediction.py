@@ -43,12 +43,6 @@ V_pca  = 8   # very good approximation (Vol)
 # RQ: better using Vin as a regularization autoencodding or not?
 # RQ: better using Ldim>0 or not?
 
-hidden = [128,256,128]
-hidden_big = [128,256,512,256,128]
-hidden_small = [128]
-Ldim = 128
-Ldim_big = 256
-Ldim_small = 64
 
 # XYZ means 3way, and each signal is original
 # Xyz means 3way, but y and z is pca, X is original
@@ -58,7 +52,8 @@ Ldim_small = 64
 # testing idea: keep track of the y_loss independently and check whether there is a correlation tr-loss vs te-loss
 # testing idea (-w): wY is times the other two
 
-baselines = ['RFY', 'RFy', 'RFZY', 'RFZYcv','RFZy', 'RFzY', 'RFzy','1NN' ]
+baselines = ['RFY', 'RFy', '1NN' ]
+rename_method = {}
 
 def methods():
     rf = RandomForestRegressor()
@@ -77,34 +72,46 @@ def methods():
         ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
     ),
-    yield 'PAExy', NN3WayReg(
+    yield 'PAExy', NN3WayReg( # nomenclature is wrong, should be PAEzy
         model=AE(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
     ),
-    yield 'PAEXY', NN3WayReg(
+    yield 'PAEXY', NN3WayReg( # nomenclature is wrong, should be PAEZY; constructor is wrong, shoud be AE (relaunching...)
         model=AE2(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
     ),
-    yield 'PAEZ', NN3WayReg(
-        model=AE3(
+    yield 'PAEZY', NN3WayReg( # relauching... it was AE2 instead of AE
+        model=AE(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    ),
+    yield 'PAEZZY', NN3WayReg( # relauching... it was AE2 instead of AE, with more preasure towards Z
+        model=AE(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
     ),
-    yield 'PAEZZ', NN3WayReg(
-        model=AE3(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.01, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    ),
+    # yield 'PAEZ', NN3WayReg(
+    #     model=AE3(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+    #     ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+    #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    # ),
+    # yield 'PAEZZ', NN3WayReg(
+    #     model=AE3(
+    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+    #     ), wX=0, wZ=0.01, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+    #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    # ),
     yield 'Ensamble', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
     # yield 'Ensamble2', Ensemble(path=results_dir, methods=['1NN', 'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
-    yield 'Ensamble3', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'PAEZ', 'PAEZZ'])
-    yield 'Ensamble-m', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'], agg='mean')
+    # yield 'Ensamble3', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'PAEZ', 'PAEZZ'])
+    # yield 'Ensamble-m', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'], agg='mean')
 
 
 def validation_idx(X, n_groups, val_prop=0.1, random_state=0):
