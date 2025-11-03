@@ -41,16 +41,16 @@ if __name__ == '__main__':
     Go_dim = model_params['Go_dim']
 
     print('Loading AE-type 1 over (z,y)')
-    PAEzy = NewPAEzy().load_model(join(model_path, 'AEzy'))
+    PAEzy = NewPAEzy().load_model(join(model_path, 'AEzy.pt'))
 
     print('Loading AE-type 1 over (Z,Y)')
-    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'AEZY'))
+    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'AEZY.pt'))
 
     print('Loading AE-type 2 over (z,y)')
-    PAE2zy = NewPAE2zy().load_model(join(model_path, 'AE2zy'))
+    PAE2zy = NewPAE2zy().load_model(join(model_path, 'AE2zy.pt'))
 
     print('Loading AE-type 2 over (Z,Y)')
-    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'AE2ZY'))
+    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'AE2ZY.pt'))
 
     print("[Done]")
 
