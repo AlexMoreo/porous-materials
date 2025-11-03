@@ -58,7 +58,7 @@ rename_method = {}
 def methods():
     rf = RandomForestRegressor()
     yield 'RFY', DirectRegression(rf),
-    yield 'RFy', DirectRegression(rf, y_red=Go_pca)
+    #yield 'RFy', DirectRegression(rf, y_red=Go_pca)
     yield '1NN', NearestNeighbor()
     yield 'PAE2zy', NN3WayReg(
         model=AE2(
@@ -78,30 +78,30 @@ def methods():
         ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
     ),
-    yield 'PAEzzy', NN3WayReg( # nomenclature is wrong, should be PAEzy; redo with more preasure towards wZ for coherence (all methods wZ=0.001)
-        model=AE(
-            Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
-    ),
-    yield 'PAEXY', NN3WayReg( # nomenclature is wrong, should be PAEZY; constructor is wrong, shoud be AE (relaunching...)
-        model=AE2(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    ),
+    #yield 'PAEzzy', NN3WayReg( # nomenclature is wrong, should be PAEzy; redo with more preasure towards wZ for coherence (all methods wZ=0.001)
+    #    model=AE(
+    #        Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
+    #    ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
+    #    smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
+    #),
+    #yield 'PAEXY', NN3WayReg( # nomenclature is wrong, should be PAEZY; constructor is wrong, shoud be AE (relaunching...)
+    #    model=AE2(
+    #        Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+    #    ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+    #    smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    #),
     yield 'PAEZY', NN3WayReg( # relauching... it was AE2 instead of AE
         model=AE(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
     ),
-    yield 'PAEZZY', NN3WayReg( # relauching... it was AE2 instead of AE, with more preasure towards Z
-        model=AE(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    ),
+    #yield 'PAEZZY', NN3WayReg( # relauching... it was AE2 instead of AE, with more preasure towards Z
+    #    model=AE(
+    #        Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+    #    ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+    #    smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+    #),
     # yield 'PAEZ', NN3WayReg(
     #     model=AE3(
     #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
@@ -114,9 +114,9 @@ def methods():
     #     ), wX=0, wZ=0.01, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
     #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
     # ),
-    yield 'Ensamble', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
+    #yield 'Ensamble', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
     yield 'EnsRedo', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZY'])
-    yield 'EnsRedoZZ', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZZY'])
+    #yield 'EnsRedoZZ', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZZY'])
     # yield 'Ensamble2', Ensemble(path=results_dir, methods=['1NN', 'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
     # yield 'Ensamble3', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'PAEZ', 'PAEZZ'])
     # yield 'Ensamble-m', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'], agg='mean')

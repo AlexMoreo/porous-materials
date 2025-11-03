@@ -20,11 +20,11 @@ baseline_path = None
 #          + [f'R3-y{i}' for i in range(5)]
 # )
 # def var_size(method): return [f'{method}-small', method, f'{method}-big']
-methods = ['RFY', 'RFy', '1NN',  #'AE-ZY',
+methods = ['RFY', #'1NN',  #'AE-ZY',
            # 'R3-XYZ', 'R3-XYZ-tiny', 'R3-XYZ-xl', 'R3-Xyz', 'R3-Xyz-s',
            # 'R3-YZ', 'R3-YZ-tiny', 'R3-YZ-xl', 'R3-yz', #'R3-yz-s',
            #'AE-ZY', 'AE-zy',
-           'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'PAEZ' , 'PAEZZ',  'Ensamble', 'Ensamble3',  'Ensamble-m'
+           'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZ', 'EnsRedo'
            ]
 
 
