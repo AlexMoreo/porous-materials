@@ -24,7 +24,7 @@ methods = [#'RFY', #'1NN',  #'AE-ZY',
            # 'R3-XYZ', 'R3-XYZ-tiny', 'R3-XYZ-xl', 'R3-Xyz', 'R3-Xyz-s',
            # 'R3-YZ', 'R3-YZ-tiny', 'R3-YZ-xl', 'R3-yz', #'R3-yz-s',
            #'AE-ZY', 'AE-zy',
-           'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZ', 'EnsRedo'
+           'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZY', 'EnsRedo'
            ]
 
 
