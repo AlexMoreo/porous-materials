@@ -16,6 +16,8 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import utils
 import time
+import joblib
+from pathlib import Path
 
 
 class PCAadapt:
@@ -331,10 +333,19 @@ class NN3WayReg:
         self.model.load_state_dict(torch.load(best_model_path))
         self.best_loss = best_loss
 
+        # save the dimensionality reduction objects
+        joblib.dump(self.adapt_X, join(self.checkpoint_dir, 'adaptX.pkl'))
+        joblib.dump(self.adapt_Y, join(self.checkpoint_dir, 'adaptY.pkl'))
+        joblib.dump(self.adapt_Z, join(self.checkpoint_dir, 'adaptZ.pkl'))
+
         return self
 
     def load_model(self, path, device='cpu'):
         self.model.load_state_dict(torch.load(path, map_location=torch.device(device)))
+        parent = Path(path).parent
+        self.adapt_X = joblib.load(join(parent, 'adaptX.pkl'))
+        self.adapt_Y = joblib.load(join(parent, 'adaptY.pkl'))
+        self.adapt_Z = joblib.load(join(parent, 'adaptZ.pkl'))
         return self
 
     def loss_fn(self, X, X_hat, Y, Y_hat, Z, Z_hat):
