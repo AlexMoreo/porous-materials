@@ -40,16 +40,16 @@ if __name__ == '__main__':
     V_dim = model_params['V_dim']
     Go_dim = model_params['Go_dim']
 
-    print('Training AE-type 1 over (z,y)')
+    print('Loading AE-type 1 over (z,y)')
     PAEzy = NewPAEzy().load_model(join(model_path, 'AEzy'))
 
-    print('Training AE-type 1 over (Z,Y)')
+    print('Loading AE-type 1 over (Z,Y)')
     PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'AEZY'))
 
-    print('Training AE-type 2 over (z,y)')
+    print('Loading AE-type 2 over (z,y)')
     PAE2zy = NewPAE2zy().load_model(join(model_path, 'AE2zy'))
 
-    print('Training AE-type 2 over (Z,Y)')
+    print('Loading AE-type 2 over (Z,Y)')
     PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'AE2ZY'))
 
     print("[Done]")
