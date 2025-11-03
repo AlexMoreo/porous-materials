@@ -334,7 +334,7 @@ class NN3WayReg:
         return self
 
     def load_model(self, path, device='cpu'):
-        self.model.load_state_dict(torch.load(path), map_location=torch.device(device))
+        self.model.load_state_dict(torch.load(path, map_location=torch.device(device)))
         return self
 
     def loss_fn(self, X, X_hat, Y, Y_hat, Z, Z_hat):
