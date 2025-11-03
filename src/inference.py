@@ -97,6 +97,12 @@ if __name__ == '__main__':
     Y3, _, Z3 = PAE2zy.predict(Gin, return_XZ=True)
     Y4, _, Z4 = PAE2ZY.predict(Gin, return_XZ=True)
 
+    print(Gin.shape)
+    print(Gin)
+
+    print(Y1.shape)
+    print(Y1)
+
     # out-gas is taken as an ensemble of 4 models, and returns the "closest to mean" curve
     for curves in zip(Y1, Y2, Y3, Y4):
         Ypred = closes_to_mean(curves=list(curves))
