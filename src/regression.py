@@ -333,8 +333,8 @@ class NN3WayReg:
 
         return self
 
-    def load_model(self, path):
-        self.model.load_state_dict(torch.load(path))
+    def load_model(self, path, device='cpu'):
+        self.model.load_state_dict(torch.load(path), map_location=torch.device(device))
         return self
 
     def loss_fn(self, X, X_hat, Y, Y_hat, Z, Z_hat):
@@ -543,6 +543,19 @@ class MetaLearner:
         return best_method
 
 
+def closes_to_mean(curves):
+    curves = np.asarray(curves)
+    mean_curve = curves.mean(axis=0)
+    diff = np.mean((curves - mean_curve) ** 2, axis=1)
+    smallest_pos = np.argmin(diff)
+    return curves[smallest_pos]
+
+
+def mean_curve(curves):
+    curves = np.asarray(curves)
+    return curves.mean(axis=0)
+
+
 class Ensemble:
     def __init__(self, path, methods, agg='closest'):
         assert agg in ['closest', 'mean'], 'unexpected aggregation mode'
@@ -562,14 +575,10 @@ class Ensemble:
             if len(curves) != len(self.methods):
                 # incomplete aggregation
                 return None
-            curves = np.asarray(curves)
-            mean_curve = curves.mean(axis=0)
             if self.agg == 'closest':
-                errors = np.mean((curves - mean_curve)**2, axis=1)
-                smallest_pos = np.argmin(errors)
-                return curves[smallest_pos]
+                return closes_to_mean(curves)
             elif self.agg == 'mean':
-                return mean_curve
+                return mean_curve(curves)
 
         Gout = aggregate_curve('Gout')
         Vout = aggregate_curve('Vout')

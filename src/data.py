@@ -52,6 +52,33 @@ def load_data(path, cumulate_x=False, normalize=False, return_index=False, exclu
         return X, Y
 
 
+def load_test_data(path, normalize=False, return_index=False):
+    df = pd.read_csv(path)
+
+    df.columns = df.columns.str.strip()
+
+    # extract relevant features
+    adsor_cols = df.filter(regex=r'^adsor\d+$').columns
+    idx = df['Sample'].values
+
+    Y = df[adsor_cols]
+    total_vol = df['Total volume']
+
+    n, Ycol = Y.shape
+    print(f'loaded file {path}: found {n} instances of {Ycol} dimensions')
+
+    Y = Y.values
+    total_vol = total_vol.values
+
+    if normalize:
+        Y /= total_vol[:, np.newaxis]
+
+    if return_index:
+        return idx, Y
+    else:
+        return Y
+
+
 if __name__ == '__main__':
     path_h2 = '../data/training/dataset_for_hydrogen.csv'
     path_n2 = '../data/training/dataset_for_nitrogen.csv'
