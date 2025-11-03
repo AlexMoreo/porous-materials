@@ -333,6 +333,10 @@ class NN3WayReg:
 
         return self
 
+    def load_model(self, path):
+        self.model.load_state_dict(torch.load(path))
+        return self
+
     def loss_fn(self, X, X_hat, Y, Y_hat, Z, Z_hat):
         criterion = nn.MSELoss()
         y_loss = criterion(Y_hat, Y)

@@ -1,4 +1,5 @@
 import os
+import pickle
 
 from data import load_both_data
 from nn_3w_modules import AE2, AE
@@ -44,6 +45,45 @@ def parse_args():
     return parser.parse_args()
 
 
+def NewPAEzy():
+    return NN3WayReg(
+        model=AE(
+            Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000,
+        checkpoint_dir=model_path, checkpoint_id='AEzy'
+    )
+
+
+def NewPAEZY(Gi_dim, V_dim, Go_dim):
+    return NN3WayReg(
+        model=AE(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000,
+        checkpoint_dir=model_path, checkpoint_id='AEZY'
+    )
+
+
+def NewPAE2zy():
+    return NN3WayReg(
+        model=AE2(
+            Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000,
+        checkpoint_dir=model_path, checkpoint_id='AE2zy'
+    )
+
+
+def NewPAE2ZY(Gi_dim, V_dim, Go_dim):
+    return NN3WayReg(
+        model=AE2(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000,
+        checkpoint_dir=model_path, checkpoint_id='AE2ZY'
+    )
+
 if __name__ == '__main__':
 
     args = parse_args()
@@ -56,7 +96,7 @@ if __name__ == '__main__':
     print(f'Output gas: {path_h2}')
     print(f'Save directoty: {model_path}')
     print(f'Exclude models: {args.exclude_models}')
-    
+
     test_names, Vin, Gin, Gout = load_both_data(
         path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True,
         return_index=True, exclude_id=args.exclude_models
@@ -68,41 +108,24 @@ if __name__ == '__main__':
     V_dim = Vin.shape[1]
     Go_dim = Gout.shape[1]
 
+    model_params = {
+        'Gi_dim': Gi_dim,
+        'V_dim': V_dim,
+        'Go_dim': Go_dim
+    }
+    pickle.dump(model_params, open(os.path.join(model_path, 'params.dict'), 'wb'), pickle.HIGHEST_PROTOCOL)
+
     print('Training AE-type 1 over (z,y)')
-    PAEzy = NN3WayReg(
-        model=AE(
-            Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000,
-        checkpoint_dir=model_path, checkpoint_id='AEzy'
-    ).fit(Gin, Gout, Vin)
+    PAEzy = NewPAEzy().fit(Gin, Gout, Vin)
 
     print('Training AE-type 1 over (Z,Y)')
-    PAEZY = NN3WayReg(
-        model=AE(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000,
-        checkpoint_dir=model_path, checkpoint_id='AEZY'
-    ).fit(Gin, Gout, Vin)
+    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim).fit(Gin, Gout, Vin)
 
     print('Training AE-type 2 over (z,y)')
-    PAE2zy = NN3WayReg(
-        model=AE2(
-            Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000,
-        checkpoint_dir=model_path, checkpoint_id='AE2zy'
-    ).fit(Gin, Gout, Vin)
+    PAE2zy = NewPAE2zy().fit(Gin, Gout, Vin)
 
     print('Training AE-type 2 over (Z,Y)')
-    PAE2ZY = NN3WayReg(
-        model=AE2(
-            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000,
-        checkpoint_dir=model_path, checkpoint_id='AE2ZY'
-    ).fit(Gin, Gout, Vin)
+    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim).fit(Gin, Gout, Vin)
 
     print("[Done]")
 
