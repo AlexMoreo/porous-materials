@@ -20,7 +20,7 @@ baseline_path = None
 #          + [f'R3-y{i}' for i in range(5)]
 # )
 # def var_size(method): return [f'{method}-small', method, f'{method}-big']
-methods = ['RFY', #'1NN',  #'AE-ZY',
+methods = [#'RFY', #'1NN',  #'AE-ZY',
            # 'R3-XYZ', 'R3-XYZ-tiny', 'R3-XYZ-xl', 'R3-Xyz', 'R3-Xyz-s',
            # 'R3-YZ', 'R3-YZ-tiny', 'R3-YZ-xl', 'R3-yz', #'R3-yz-s',
            #'AE-ZY', 'AE-zy',
@@ -44,6 +44,8 @@ all_ids = test_names
 # methods = ['R3-XY']+[f'R3-XY-v{i+1}' for i in range(10)]
 methods_path = '../../results/plots'
 for gas_suffix in ['Vin', 'Gout']:
+    if gas_suffix == 'Gout':
+        methods = ['RFY'] + methods
     print(f'Generating plots for {gas_suffix}')
     gas_path = f'../../results/plots-{gas_suffix}'
     os.makedirs(gas_path, exist_ok=True)
