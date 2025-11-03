@@ -45,7 +45,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def NewPAEzy():
+def NewPAEzy(model_path=None):
     return NN3WayReg(
         model=AE(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
@@ -55,7 +55,7 @@ def NewPAEzy():
     )
 
 
-def NewPAEZY(Gi_dim, V_dim, Go_dim):
+def NewPAEZY(Gi_dim, V_dim, Go_dim, model_path=None):
     return NN3WayReg(
         model=AE(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
@@ -65,7 +65,7 @@ def NewPAEZY(Gi_dim, V_dim, Go_dim):
     )
 
 
-def NewPAE2zy():
+def NewPAE2zy(model_path=None):
     return NN3WayReg(
         model=AE2(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
@@ -75,7 +75,7 @@ def NewPAE2zy():
     )
 
 
-def NewPAE2ZY(Gi_dim, V_dim, Go_dim):
+def NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path=None):
     return NN3WayReg(
         model=AE2(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
@@ -83,6 +83,7 @@ def NewPAE2ZY(Gi_dim, V_dim, Go_dim):
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000,
         checkpoint_dir=model_path, checkpoint_id='AE2ZY'
     )
+
 
 if __name__ == '__main__':
 
