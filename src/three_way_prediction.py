@@ -146,7 +146,7 @@ def new_table():
     table_config=Configuration(
         show_std=False,
         mean_prec=3,
-        resizebox=.6,
+        resizebox=.5,
         stat_test=None,
         with_mean=True,
         with_rank=True
