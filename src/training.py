@@ -117,16 +117,16 @@ if __name__ == '__main__':
     pickle.dump(model_params, open(os.path.join(model_path, 'params.dict'), 'wb'), pickle.HIGHEST_PROTOCOL)
 
     print('Training AE-type 1 over (z,y)')
-    PAEzy = NewPAEzy().fit(Gin, Gout, Vin)
+    PAEzy = NewPAEzy(model_path).fit(Gin, Gout, Vin)
 
     print('Training AE-type 1 over (Z,Y)')
-    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim).fit(Gin, Gout, Vin)
+    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim, model_path).fit(Gin, Gout, Vin)
 
     print('Training AE-type 2 over (z,y)')
-    PAE2zy = NewPAE2zy().fit(Gin, Gout, Vin)
+    PAE2zy = NewPAE2zy(model_path).fit(Gin, Gout, Vin)
 
     print('Training AE-type 2 over (Z,Y)')
-    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim).fit(Gin, Gout, Vin)
+    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path).fit(Gin, Gout, Vin)
 
     print("[Done]")
 
