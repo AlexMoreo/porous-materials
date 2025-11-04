@@ -7,7 +7,7 @@ from sklearn.model_selection import LeaveOneOut, train_test_split
 from os.path import join
 from data import load_both_data
 from data_analysis.curve_clustering import cluser_curves
-from nn_3w_modules import FF3W, AE, AE2
+from nn_modules import FF3W, AE, AE2
 from regression import NN3WayReg, DirectRegression, NearestNeighbor, MetaLearner, \
     TwoStepRegression
 from result_table.src.format import Configuration
@@ -59,8 +59,8 @@ def methods():
     ),
 
 def load_data():
-    path_h2 = '../data/training/dataset_for_hydrogen.csv'
-    path_n2 = '../data/training/dataset_for_nitrogen.csv'
+    path_h2 = '../../data/training/dataset_for_hydrogen.csv'
+    path_n2 = '../../data/training/dataset_for_nitrogen.csv'
     return load_both_data(
         path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True,
         return_index=True, exclude_id=['model41', 'model45']

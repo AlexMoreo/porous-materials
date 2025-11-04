@@ -7,7 +7,7 @@ from sklearn.model_selection import LeaveOneOut, train_test_split
 from os.path import join
 from data import load_both_data
 from data_analysis.curve_clustering import cluser_curves
-from nn_3w_modules import FF3W, AE, AE2, AE3
+from nn_modules import FF3W, AE, AE2, AE3
 from regression import NN3WayReg, DirectRegression, NearestNeighbor, MetaLearner, \
     TwoStepRegression, Ensemble
 from result_table.src.format import Configuration

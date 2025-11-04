@@ -29,7 +29,7 @@ methods = [#'RFY', #'1NN',  #'AE-ZY',
 
 
 # --- selected models to display ---
-from three_way_prediction import load_data
+from experiments import load_data
 path_h2 = '../../data/training/dataset_for_hydrogen.csv'
 path_n2 = '../../data/training/dataset_for_nitrogen.csv'
 test_names, *_ = load_both_data(

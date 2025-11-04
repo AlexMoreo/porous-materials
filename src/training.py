@@ -2,7 +2,7 @@ import os
 import pickle
 
 from data import load_both_data
-from nn_3w_modules import AE2, AE
+from nn_modules import AE2, AE
 from regression import NN3WayReg
 import argparse
 

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from utils import mse, ResultTracker, plot_result
 from tqdm import tqdm
-from three_way_prediction import methods
+from experiments import methods
 
 """
 This script analyzes whether there is any correlation between the best training loss and the final test performance.

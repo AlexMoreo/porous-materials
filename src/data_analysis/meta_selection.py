@@ -6,7 +6,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import LeaveOneOut
 
 from data import load_both_data
-from nn_3w_modules import FF3W
+from nn_modules import FF3W
 from regression import NN3WayReg, DirectRegression
 from result_table.src.format import Configuration
 from result_table.src.table import LatexTable
