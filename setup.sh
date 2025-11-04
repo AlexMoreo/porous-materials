@@ -3,7 +3,7 @@
 # Exit immediately on error
 set -e
 
-ENV_NAME="neuralregressor"
+ENV_NAME="porous"
 PYTHON_VERSION="3.12"
 
 echo "=== Conda environment setup ==="

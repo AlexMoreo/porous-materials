@@ -45,7 +45,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def NewPAEzy(model_path=None):
+def NewPAEzy(model_path=None, cuda=False):
     return NN3WayReg(
         model=AE(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
@@ -55,7 +55,7 @@ def NewPAEzy(model_path=None):
     )
 
 
-def NewPAEZY(Gi_dim, V_dim, Go_dim, model_path=None):
+def NewPAEZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
     return NN3WayReg(
         model=AE(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
@@ -65,7 +65,7 @@ def NewPAEZY(Gi_dim, V_dim, Go_dim, model_path=None):
     )
 
 
-def NewPAE2zy(model_path=None):
+def NewPAE2zy(model_path=None, cuda=False):
     return NN3WayReg(
         model=AE2(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
@@ -75,7 +75,7 @@ def NewPAE2zy(model_path=None):
     )
 
 
-def NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path=None):
+def NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
     return NN3WayReg(
         model=AE2(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
@@ -117,16 +117,16 @@ if __name__ == '__main__':
     pickle.dump(model_params, open(os.path.join(model_path, 'params.dict'), 'wb'), pickle.HIGHEST_PROTOCOL)
 
     print('Training AE-type 1 over (z,y)')
-    PAEzy = NewPAEzy(model_path).fit(Gin, Gout, Vin)
+    PAEzy = NewPAEzy(model_path, cuda=True).fit(Gin, Gout, Vin)
 
     print('Training AE-type 1 over (Z,Y)')
-    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim, model_path).fit(Gin, Gout, Vin)
+    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim, model_path, cuda=True).fit(Gin, Gout, Vin)
 
     print('Training AE-type 2 over (z,y)')
-    PAE2zy = NewPAE2zy(model_path).fit(Gin, Gout, Vin)
+    PAE2zy = NewPAE2zy(model_path, cuda=True).fit(Gin, Gout, Vin)
 
     print('Training AE-type 2 over (Z,Y)')
-    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path).fit(Gin, Gout, Vin)
+    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path, cuda=True).fit(Gin, Gout, Vin)
 
     print("[Done]")
 
