@@ -60,7 +60,7 @@ def save_prediction(idx: np.ndarray, pred: np.ndarray, path: str):
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
     # Save to CSV
-    df.to_csv(path, index=False)
+    df.to_csv(path, index=True)
 
 
 if __name__ == '__main__':
