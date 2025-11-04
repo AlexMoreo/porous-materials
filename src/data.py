@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 
 def load_both_data(path_input_gas, path_output_gas, cumulate_vol=False, normalize=False, return_index=False, exclude_id=None):
