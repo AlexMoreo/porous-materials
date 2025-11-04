@@ -1,35 +1,44 @@
 #!/bin/bash
 
-# setup.sh — create and prepare a Python virtual environment
-# Usage: bash setup.sh
+# Exit immediately on error
+set -e
 
-set -e  # exit on any error
+ENV_NAME="neuralregressor"
+PYTHON_VERSION="3.12"
 
-ENV_DIR="env"
+echo "=== Conda environment setup ==="
 
-# Optional: clean setup (ask before deleting existing environment)
-if [ -d "$ENV_DIR" ]; then
-    read -p "The environment '$ENV_DIR' already exists. Recreate it? [y/N] " yn
-    case $yn in
-        [Yy]* ) rm -rf "$ENV_DIR";;
-        * ) echo "Using existing environment."; exit 0;;
-    esac
+# Check if conda is available
+if ! command -v conda &>/dev/null; then
+    echo "Error: Conda is not installed or not in PATH."
+    echo "Please install Miniconda or Anaconda first:"
+    echo "  https://docs.conda.io/en/latest/miniconda.html"
+    exit 1
 fi
 
-echo "Creating virtual environment in: $ENV_DIR ..."
-python3 -m venv "$ENV_DIR"
+# Create environment if it doesn’t already exist
+if conda env list | grep -q "^$ENV_NAME "; then
+    echo "Environment '$ENV_NAME' already exists. Updating dependencies..."
+else
+    echo "Creating new conda environment '$ENV_NAME' with Python $PYTHON_VERSION..."
+    conda create -y -n "$ENV_NAME" python=$PYTHON_VERSION
+fi
 
-echo "Activating virtual environment..."
-source "$ENV_DIR/bin/activate"
+# Activate the environment
+echo "Activating environment..."
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "$ENV_NAME"
 
-echo "Installing dependencies..."
-pip install --upgrade pip
-pip install -r requirements.txt
+# Install dependencies
+if [ -f requirements.txt ]; then
+    echo "Installing dependencies from requirements.txt..."
+    pip install --upgrade pip
+    pip install -r requirements.txt
+else
+    echo "requirements.txt not found. Skipping dependency installation."
+fi
 
-echo "Environment ready!"
-echo
-echo "To activate it later, run:"
-echo "source $ENV_DIR/bin/activate"
-echo
-echo "Then you can run your script, for example:"
-echo "python your_script.py"
+echo "=== Setup complete! ==="
+echo "To activate the environment later, run:"
+echo "conda activate $ENV_NAME"
