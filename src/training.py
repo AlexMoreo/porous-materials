@@ -49,7 +49,7 @@ def NewPAEzy(model_path=None, cuda=False):
     return NN3WayReg(
         model=AE(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
+        ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000,
         checkpoint_dir=model_path, checkpoint_id='AEzy'
     )
@@ -59,7 +59,7 @@ def NewPAEZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
     return NN3WayReg(
         model=AE(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000,
         checkpoint_dir=model_path, checkpoint_id='AEZY'
     )
@@ -69,7 +69,7 @@ def NewPAE2zy(model_path=None, cuda=False):
     return NN3WayReg(
         model=AE2(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
+        ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000,
         checkpoint_dir=model_path, checkpoint_id='AE2zy'
     )
@@ -79,7 +79,7 @@ def NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
     return NN3WayReg(
         model=AE2(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000,
         checkpoint_dir=model_path, checkpoint_id='AE2ZY'
     )
