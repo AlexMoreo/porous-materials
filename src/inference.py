@@ -4,7 +4,7 @@ from os.path import join
 
 from data import load_test_data
 from training import *
-from regression import closes_to_mean
+from regression import closest_to_mean
 import argparse
 import numpy as np
 import pandas as pd
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     print(Y1)
 
     # out-gas is taken as an ensemble of 4 models, and returns the "closest to mean" curve
-    Ypred = np.asarray([closes_to_mean(curves=list(preds) for preds in zip(Y1, Y2, Y3, Y4))])
+    Ypred = np.asarray([closest_to_mean(curves=list(preds)) for preds in zip(Y1, Y2, Y3, Y4)])
 
     # out-vol is taken from PAE2zy
     Zpred = Z3

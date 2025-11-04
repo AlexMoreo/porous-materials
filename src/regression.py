@@ -554,7 +554,7 @@ class MetaLearner:
         return best_method
 
 
-def closes_to_mean(curves):
+def closest_to_mean(curves):
     curves = np.asarray(curves)
     mean_curve = curves.mean(axis=0)
     diff = np.mean((curves - mean_curve) ** 2, axis=1)
@@ -587,7 +587,7 @@ class Ensemble:
                 # incomplete aggregation
                 return None
             if self.agg == 'closest':
-                return closes_to_mean(curves)
+                return closest_to_mean(curves)
             elif self.agg == 'mean':
                 return mean_curve(curves)
 
