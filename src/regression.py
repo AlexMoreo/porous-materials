@@ -1,7 +1,6 @@
 import os
 
 import numpy as np
-from quapy.model_selection import cross_val_predict
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import LeaveOneOut, KFold, cross_val_predict
 from sklearn.multioutput import MultiOutputRegressor
