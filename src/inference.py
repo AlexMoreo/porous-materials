@@ -40,20 +40,21 @@ def parse_args():
     return parser.parse_args()
 
 
-def save_prediction(pred: np.ndarray, path: str):
+def save_prediction(idx: np.ndarray, pred: np.ndarray, path: str):
     """
     Save predictions as a CSV file with columns var1, var2, ...
 
     Parameters:
+        idx: (np.ndarray): Array of indexes (curves' names)
         pred (np.ndarray): Array of predictions with shape (n_instances, n_dimensions).
         path (str): Path to the CSV file where results will be saved.
     """
     # Create column names: var1, var2, ...
     n_features = pred.shape[1]
-    col_names = [f"var{i+1}" for i in range(n_features)]
+    col_names = ["Sample"]+[f"var{i+1}" for i in range(n_features)]
 
     # Build DataFrame
-    df = pd.DataFrame(pred, columns=col_names)
+    df = pd.DataFrame(pred, columns=col_names, index=idx)
 
     # Ensure the directory exists
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -97,12 +98,6 @@ if __name__ == '__main__':
     Y3, _, Z3 = PAE2zy.predict(Gin, return_XZ=True)
     Y4, _, Z4 = PAE2ZY.predict(Gin, return_XZ=True)
 
-    print(Gin.shape)
-    print(Gin)
-
-    print(Y1.shape)
-    print(Y1)
-
     # out-gas is taken as an ensemble of 4 models, and returns the "closest to mean" curve
     Ypred = np.asarray([closest_to_mean(curves=list(preds)) for preds in zip(Y1, Y2, Y3, Y4)])
 
@@ -114,10 +109,10 @@ if __name__ == '__main__':
     path_Vout = join(out_dir, 'Vout.csv')
 
     print(f"Saving predicted gas-out to {path_Gout}")
-    save_prediction(Ypred, path_Gout)
+    save_prediction(idx, Ypred, path_Gout)
 
     print(f"Saving predicted gas-out to {path_Gout}")
-    save_prediction(Zpred, path_Vout)
+    save_prediction(idx, Zpred, path_Vout)
 
     print("[Done]")
 
