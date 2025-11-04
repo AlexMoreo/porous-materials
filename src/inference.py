@@ -104,7 +104,7 @@ if __name__ == '__main__':
     print(Y1)
 
     # out-gas is taken as an ensemble of 4 models, and returns the "closest to mean" curve
-    Ypred = np.asarray([closes_to_mean(curves=list(curves) for curves in zip(Y1, Y2, Y3, Y4))])
+    Ypred = np.asarray([closes_to_mean(curves=list(preds) for preds in zip(Y1, Y2, Y3, Y4))])
 
     # out-vol is taken from PAE2zy
     Zpred = Z3
