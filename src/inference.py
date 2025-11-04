@@ -51,7 +51,7 @@ def save_prediction(idx: np.ndarray, pred: np.ndarray, path: str):
     """
     # Create column names: var1, var2, ...
     n_features = pred.shape[1]
-    col_names = ["Sample"]+[f"var{i+1}" for i in range(n_features)]
+    col_names = [f"var{i+1}" for i in range(n_features)]
 
     # Build DataFrame
     df = pd.DataFrame(pred, columns=col_names, index=idx)
