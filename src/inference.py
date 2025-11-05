@@ -98,11 +98,13 @@ if __name__ == '__main__':
     Y3, _, Z3 = PAE2zy.predict(Gin, return_XZ=True)
     Y4, _, Z4 = PAE2ZY.predict(Gin, return_XZ=True)
 
+
     # out-gas is taken as an ensemble of 4 models, and returns the "closest to mean" curve
     Ypred = np.asarray([closest_to_mean(curves=list(preds)) for preds in zip(Y1, Y2, Y3, Y4)])
 
     # out-vol is taken from PAE2zy
     Zpred = Z3
+    Zpred = np.clip(0, 1, Zpred)
 
     # saving predictions to file
     path_Gout = join(out_dir, 'Gout.csv')
