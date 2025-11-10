@@ -42,6 +42,13 @@ def parse_args():
         help="List of models to exclude (default: model41, model45)."
     )
 
+    # 5. device (opcional)
+    parser.add_argument(
+        "--cpu",
+        action='store_true',
+        help="Activate cpu-only mode (default: cuda)"
+    )
+
     return parser.parse_args()
 
 
@@ -93,15 +100,18 @@ if __name__ == '__main__':
     path_h2 = args.gas_output
     path_n2 = args.gas_input
 
+    cuda = not args.cpu
     print(f'Input gas: {path_n2}')
     print(f'Output gas: {path_h2}')
     print(f'Save directoty: {model_path}')
     print(f'Exclude models: {args.exclude_models}')
+    print(f'Cuda {cuda}')
 
     test_names, Vin, Gin, Gout = load_both_data(
         path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True,
         return_index=True, exclude_id=args.exclude_models
     )
+    print(f'final selection has {len(test_names)} models')
 
     os.makedirs(model_path, exist_ok=True)
 
@@ -117,16 +127,16 @@ if __name__ == '__main__':
     pickle.dump(model_params, open(os.path.join(model_path, 'params.dict'), 'wb'), pickle.HIGHEST_PROTOCOL)
 
     print('Training AE-type 1 over (z,y)')
-    PAEzy = NewPAEzy(model_path, cuda=True).fit(Gin, Gout, Vin)
+    PAEzy = NewPAEzy(model_path, cuda=cuda).fit(Gin, Gout, Vin)
 
     print('Training AE-type 1 over (Z,Y)')
-    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim, model_path, cuda=True).fit(Gin, Gout, Vin)
+    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim, model_path, cuda=cuda).fit(Gin, Gout, Vin)
 
     print('Training AE-type 2 over (z,y)')
-    PAE2zy = NewPAE2zy(model_path, cuda=True).fit(Gin, Gout, Vin)
+    PAE2zy = NewPAE2zy(model_path, cuda=cuda).fit(Gin, Gout, Vin)
 
     print('Training AE-type 2 over (Z,Y)')
-    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path, cuda=True).fit(Gin, Gout, Vin)
+    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path, cuda=cuda).fit(Gin, Gout, Vin)
 
     print("[Done]")
 

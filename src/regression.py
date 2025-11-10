@@ -196,7 +196,7 @@ class NNReg:
 
 def jaggedness(output):
     # Define second-derivative kernel
-    kernel = torch.tensor([1.0, -2.0, 1.0], dtype=output.dtype, device=output.device).view(1, 1, -1)
+    kernel = torch.tensor([1.0, -2.0, 1.0], dtype=output.dtype, device=output.cuda).view(1, 1, -1)
 
     # Add channel dimension for conv1d
     conv_out = F.conv1d(output.unsqueeze(1), kernel, padding=0)
