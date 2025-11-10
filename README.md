@@ -2,13 +2,15 @@
 
 ## install
 
-Please, make sure you have conda (or miniconda) installed. Then follow these instructions
+Please, make sure you have conda (or miniconda) installed. Then follow these instructions for enabling inference (cpu-only):
 
 ```bash
 git clone git@github.com:AlexMoreo/porous-materials.git
 cd porous-materials
-chmod +x setup.sh
-./setup.sh
+conda create -n porous python=3.12
+conda activate porous
+pip install numpy pandas scikit-learn matplotlib
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
 
 Then, make sure you have the pre-trained model files in your system, e.g., in ./neuralregressor. Assume the data for which you want to issue predictions is in ./data/test.csv. Then run:
