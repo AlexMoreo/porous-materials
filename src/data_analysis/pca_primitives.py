@@ -6,9 +6,18 @@ for reduce in ['volume', 'nitrogen', 'hydrogen']:
 
     components=8
 
-    path_n2 = f'../../data/training/dataset_for_nitrogen.csv'
-    path_h2 = f'../../data/training/dataset_for_hydrogen.csv'
-    Vin, Gin, Gout = load_both_data(path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True)
+    # path_n2 = f'../../data/training/dataset_for_nitrogen.csv'
+    # path_h2 = f'../../data/training/dataset_for_hydrogen.csv'
+    # Vin, Gin, Gout = load_both_data(path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True)
+
+    path_h2 = '../../data/training_molg/dataset_hydrogen_molg.csv'
+    path_n2 = '../../data/training_molg/dataset_nitrogen_molg.csv'
+    test_names, Vin, Gin, Gout = load_both_data(
+        path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=False, normalize=True,
+        return_index=True,
+    )
+    Gin *= 108570
+    Gout *= 108570
 
     Z = {
         'volume': Vin,

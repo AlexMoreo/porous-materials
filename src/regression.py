@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.model_selection import LeaveOneOut, KFold, cross_val_predict
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import LinearSVR
 import torch
 from torch import nn, optim
@@ -20,17 +21,23 @@ from pathlib import Path
 
 class PCAadapt:
 
-    def __init__(self, components, force=True):
+    def __init__(self, components, force=True, normalize=False):
         self.n_components = components
         self.force = force
+        self.normalize = normalize
         self.pca = PCA(n_components=self.n_components)
+        self.minmaxscaler = MinMaxScaler()
         if force:
             assert components is not None, 'components cannot be None if force=True'
 
-    def _compress(self, Z, compress_fn):
+    def _compress(self, Z, fit):
+        if self.normalize:
+            norm_fn = self.minmaxscaler.fit_transform if fit else self.minmaxscaler.transform
+            Z = norm_fn(Z)
         if not self.force and self.n_components is None:
             return Z
         if Z.shape[1] > self.n_components:
+            compress_fn = self.pca.fit_transform if fit else self.pca.transform
             Z = compress_fn(Z)
         elif self.force:
             raise ValueError(f'requested PCA components={self.n_components} but input has {Z.shape[1]} dimensions')
@@ -38,21 +45,23 @@ class PCAadapt:
 
     def fit_transform(self, Z):
         self.orig_dim = Z.shape[1]
-        return self._compress(Z, self.pca.fit_transform)
+        return self._compress(Z, fit=True)
 
     def transform(self, Z):
-        return self._compress(Z, self.pca.transform)
+        return self._compress(Z, fit=False)
 
     def inverse_transform(self, Z):
-        if not self.force and self.n_components is None:
-            return Z
-        if Z.shape[1] == self.n_components:
+        if self.force or self.n_components is not None:
+            if Z.shape[1] != self.n_components:
+                raise ValueError('inverse transform not understood')
+
             if self.orig_dim > self.n_components:
-                return self.pca.inverse_transform(Z)
-            else:
-                return Z
-        else:
-            raise ValueError('inverse transform not understood')
+                Z = self.pca.inverse_transform(Z)
+
+        if self.normalize:
+            Z = self.minmaxscaler.inverse_transform(Z)
+
+        return Z
 
 
 class StackRegressor:
@@ -213,14 +222,15 @@ class NN3WayReg:
                  monotonic_Z=False,
                  smooth_prediction=False,
                  weight_decay=0,
+                 normalize_XY=False,
                  checkpoint_dir='../checkpoints', checkpoint_id=None, max_epochs=np.inf):
         self.model = model
         self.lr = lr
         self.reg_strength = smooth_reg_weight
         self.clip = clip
         self.cuda = cuda
-        self.adapt_X = PCAadapt(components=X_red, force=False)
-        self.adapt_Y = PCAadapt(components=Y_red, force=False)
+        self.adapt_X = PCAadapt(components=X_red, force=False, normalize=normalize_XY)
+        self.adapt_Y = PCAadapt(components=Y_red, force=False, normalize=normalize_XY)
         self.adapt_Z = PCAadapt(components=Z_red, force=False)
         assert wY > 0, 'prediction weight cannot be 0'
         self.wX = wX
@@ -446,9 +456,9 @@ class NN3WayReg:
 
 
 class DirectRegression:
-    def __init__(self, regressor:BaseEstimator, x_red=None, y_red=None):
-        self.adaptX = PCAadapt(components=x_red, force=False)
-        self.adaptY = PCAadapt(components=y_red, force=False)
+    def __init__(self, regressor:BaseEstimator, x_red=None, y_red=None, normalize=False):
+        self.adaptX = PCAadapt(components=x_red, force=False, normalize=normalize)
+        self.adaptY = PCAadapt(components=y_red, force=False, normalize=normalize)
         self.rf = clone(regressor)
 
     def fit(self, X, Y, Z=None):

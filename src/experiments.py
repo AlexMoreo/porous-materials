@@ -15,7 +15,7 @@ from result_table.src.table import LatexTable
 from utils import mse, ResultTracker, plot_result
 import sys
 
-results_dir = '../results'
+results_dir = '../results_molg'
 # only_tables = True
 only_tables =  "tables" in sys.argv
 add_ref_color=False
@@ -30,9 +30,9 @@ only_models = None
 selected_tests = None
 
 # PCA reductions
-Go_pca = 8  # very good approximation (H2)
-Gi_pca  = 12 # 12 is somehow good approximation (N2) -- do we need to simplify the input?
-V_pca  = 8   # very good approximation (Vol)
+# Go_pca = 8  # very good approximation (H2)
+# Gi_pca  = 12 # 12 is somehow good approximation (N2) -- do we need to simplify the input?
+# V_pca  = 8   # very good approximation (Vol)
 
 # RQ: does dropout help? looks like no!
 # RQ: does PCA helps? sometimes yes, others is better the orig representation... not clear!
@@ -40,7 +40,7 @@ V_pca  = 8   # very good approximation (Vol)
 # RQ: best architecture?
 # RQ: smoothing matters?
 # RQ: more importance to loss Gout (wY)?
-# RQ: better using Vin as a regularization autoencodding or not?
+# RQ: better using Vin as a regularization autoencoding or not?
 # RQ: better using Ldim>0 or not?
 
 
@@ -57,69 +57,35 @@ rename_method = {}
 
 def methods():
     rf = RandomForestRegressor()
-    yield 'RFY', DirectRegression(rf),
+    yield 'RFY', DirectRegression(rf, normalize=True),
     #yield 'RFy', DirectRegression(rf, y_red=Go_pca)
     yield '1NN', NearestNeighbor()
     yield 'PAE2zy', NN3WayReg(
         model=AE2(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XY=True
     ),
     yield 'PAE2ZY', NN3WayReg(
         model=AE2(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XY=True
     ),
     yield 'PAExy', NN3WayReg( # nomenclature is wrong, should be PAEzy
         model=AE(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XY=True
     ),
-    #yield 'PAEzzy', NN3WayReg( # nomenclature is wrong, should be PAEzy; redo with more preasure towards wZ for coherence (all methods wZ=0.001)
-    #    model=AE(
-    #        Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
-    #    ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
-    #    smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000
-    #),
-    #yield 'PAEXY', NN3WayReg( # nomenclature is wrong, should be PAEZY; constructor is wrong, shoud be AE (relaunching...)
-    #    model=AE2(
-    #        Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-    #    ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-    #    smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    #),
-    yield 'PAEZY', NN3WayReg( # relauching... it was AE2 instead of AE
+    yield 'PAEZY', NN3WayReg( # relaunching... it was AE2 instead of AE
         model=AE(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XY=True
     ),
-    #yield 'PAEZZY', NN3WayReg( # relauching... it was AE2 instead of AE, with more preasure towards Z
-    #    model=AE(
-    #        Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-    #    ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-    #    smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    #),
-    # yield 'PAEZ', NN3WayReg(
-    #     model=AE3(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-    #     ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-    #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    # ),
-    # yield 'PAEZZ', NN3WayReg(
-    #     model=AE3(
-    #         Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-    #     ), wX=0, wZ=0.01, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-    #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000
-    # ),
-    #yield 'Ensamble', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
     yield 'EnsRedo', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZY'])
-    #yield 'EnsRedoZZ', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZZY'])
-    # yield 'Ensamble2', Ensemble(path=results_dir, methods=['1NN', 'PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'])
-    # yield 'Ensamble3', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY', 'PAEZ', 'PAEZZ'])
-    # yield 'Ensamble-m', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEXY'], agg='mean')
+
 
 
 def validation_idx(X, n_groups, val_prop=0.1, random_state=0):
@@ -155,12 +121,23 @@ def new_table():
 
 
 def load_data():
-    path_h2 = '../data/training/dataset_for_hydrogen.csv'
-    path_n2 = '../data/training/dataset_for_nitrogen.csv'
-    return load_both_data(
-        path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True,
+    # path_h2 = '../data/training/dataset_for_hydrogen.csv'
+    # path_n2 = '../data/training/dataset_for_nitrogen.csv'
+    # return load_both_data(
+    #     path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=True, normalize=True,
+    #     return_index=True, exclude_id=['model41', 'model45']
+    # )
+
+    path_h2 = '../data/training_molg/dataset_hydrogen_molg.csv'
+    path_n2 = '../data/training_molg/dataset_nitrogen_molg.csv'
+    test_names, Vin, Gin, Gout = load_both_data(
+        path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=False, normalize=True,
         return_index=True, exclude_id=['model41', 'model45']
     )
+    Vin = Vin[:,:59]
+    # Gin *= 100000
+    # Gout *= 100000
+    return test_names, Vin, Gin, Gout
 
 
 if __name__ == '__main__':
