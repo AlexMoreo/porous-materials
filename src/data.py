@@ -51,7 +51,7 @@ def load_data(path, cumulate_x=False, normalize=False, return_index=False, exclu
         return X, Y
 
 
-def load_test_data(path, normalize=False, return_index=False):
+def load_test_data(path, normalize=False, return_index=False, return_normalization_col=True):
     df = pd.read_csv(path)
 
     df.columns = df.columns.str.strip()
@@ -71,6 +71,28 @@ def load_test_data(path, normalize=False, return_index=False):
 
     if normalize:
         Y /= total_vol[:, np.newaxis]
+
+    # prepare output and go
+    to_return = [Y]
+    if return_index:
+        to_return.insert(0, idx)
+    if return_normalization_col:
+        to_return.append(total_vol)
+    return to_return[0] if len(to_return) == 1 else to_return
+
+
+
+def load_predicted_data(path, return_index=False):
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip()
+
+    # extract relevant features
+    var_cols = df.filter(regex=r'^var\d+$').columns
+    idx = df['Sample'].values
+
+    Y = df[var_cols].values
+    n, Ycol = Y.shape
+    print(f'loaded file {path}: found {n} instances of {Ycol} dimensions')
 
     if return_index:
         return idx, Y

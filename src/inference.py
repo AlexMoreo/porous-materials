@@ -69,7 +69,7 @@ if __name__ == '__main__':
     model_path = args.saved
     out_dir = args.out
 
-    idx, Gin = load_test_data(path=args.input, normalize=True, return_index=True)
+    idx, Gin, tot_vol = load_test_data(path=args.input, normalize=True, return_index=True, return_normalization_col=True)
 
     model_params = pickle.load(open(join(model_path, 'params.dict'), 'rb'))
     Gi_dim = model_params['Gi_dim']
@@ -101,10 +101,12 @@ if __name__ == '__main__':
 
     # out-gas is taken as an ensemble of 4 models, and returns the "closest to mean" curve
     Ypred = np.asarray([closest_to_mean(curves=list(preds)) for preds in zip(Y1, Y2, Y3, Y4)])
+    Ypred *= tot_vol
 
     # out-vol is taken from PAE2zy
     Zpred = Z3
     Zpred = np.clip(0, 1, Zpred)
+    Zpred *= tot_vol
 
     # saving predictions to file
     path_Gout = join(out_dir, 'Gout.csv')
@@ -113,7 +115,7 @@ if __name__ == '__main__':
     print(f"Saving predicted gas-out to {path_Gout}")
     save_prediction(idx, Ypred, path_Gout)
 
-    print(f"Saving predicted gas-out to {path_Gout}")
+    print(f"Saving predicted gas-out to {path_Vout}")
     save_prediction(idx, Zpred, path_Vout)
 
     print("[Done]")
