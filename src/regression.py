@@ -231,7 +231,7 @@ class NN3WayReg:
         self.cuda = cuda
         self.adapt_X = PCAadapt(components=X_red, force=False, normalize=normalize_XY)
         self.adapt_Y = PCAadapt(components=Y_red, force=False, normalize=normalize_XY)
-        self.adapt_Z = PCAadapt(components=Z_red, force=False)
+        self.adapt_Z = PCAadapt(components=Z_red, force=False, normalize=normalize_XY)
         assert wY > 0, 'prediction weight cannot be 0'
         self.wX = wX
         self.wY = wY
