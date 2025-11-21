@@ -73,9 +73,9 @@ def load_test_data(path, normalize=False, return_index=False):
         Y /= total_vol[:, np.newaxis]
 
     if return_index:
-        return idx, Y
+        return idx, Y, total_vol
     else:
-        return Y
+        return Y, total_vol
 
 
 if __name__ == '__main__':
