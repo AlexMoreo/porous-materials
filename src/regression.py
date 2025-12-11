@@ -30,25 +30,38 @@ class PCAadapt:
         if force:
             assert components is not None, 'components cannot be None if force=True'
 
-    def _compress(self, Z, fit):
+    def _compress(self, Z, fit, Z_null=None):
+        if Z_null is None:
+            Z_null = np.full(shape=Z.shape[0], fill_value=False)
+
+        nel, ndim = Z.shape
+        Z_valid = Z[~Z_null]
+
+        # normalization step
         if self.normalize:
             norm_fn = self.minmaxscaler.fit_transform if fit else self.minmaxscaler.transform
-            Z = norm_fn(Z)
-        if not self.force and self.n_components is None:
-            return Z
-        if Z.shape[1] > self.n_components:
-            compress_fn = self.pca.fit_transform if fit else self.pca.transform
-            Z = compress_fn(Z)
-        elif self.force:
-            raise ValueError(f'requested PCA components={self.n_components} but input has {Z.shape[1]} dimensions')
-        return Z
+            Z_valid = norm_fn(Z_valid)
 
-    def fit_transform(self, Z):
+        # PCA (conditional)
+        if self.force or self.n_components is not None:
+            if ndim > self.n_components:
+                compress_fn = self.pca.fit_transform if fit else self.pca.transform
+                Z_valid = compress_fn(Z_valid)
+            elif self.force:
+                raise ValueError(f'requested PCA components={self.n_components} but input has {ndim} dimensions')
+
+        # reconstruct for null values
+        Z_out = np.full((nel, Z_valid.shape[1]), -1)
+        Z_out[~Z_null] = Z_valid
+
+        return Z_out
+
+    def fit_transform(self, Z, Z_null=None):
         self.orig_dim = Z.shape[1]
-        return self._compress(Z, fit=True)
+        return self._compress(Z, fit=True, Z_null=Z_null)
 
-    def transform(self, Z):
-        return self._compress(Z, fit=False)
+    def transform(self, Z, Z_null=None):
+        return self._compress(Z, fit=False, Z_null=Z_null)
 
     def inverse_transform(self, Z):
         if self.force or self.n_components is not None:
@@ -216,14 +229,21 @@ def jaggedness(output):
 
 
 class NN3WayReg:
-    def __init__(self, model, lr=0.003, smooth_reg_weight=0., clip=None, cuda=True,
+    def __init__(self,
+                 model,
+                 lr=0.003,
+                 smooth_reg_weight=0.,
+                 clip=None,
+                 cuda=True,
                  X_red=None, Y_red=None, Z_red=None,
                  wX=1, wY=1, wZ=1,
                  monotonic_Z=False,
                  smooth_prediction=False,
                  weight_decay=0,
                  normalize_XY=False,
-                 checkpoint_dir='../checkpoints', checkpoint_id=None, max_epochs=np.inf):
+                 checkpoint_dir='../checkpoints',
+                 checkpoint_id=None,
+                 max_epochs=np.inf):
         self.model = model
         self.lr = lr
         self.reg_strength = smooth_reg_weight
@@ -257,19 +277,28 @@ class NN3WayReg:
             self.smooth_layer.weight.data.fill_(1 / self.smooth_length)
 
     def fit(self, X, Y, Z, in_val=None, show_test_model=None):
-        def split_val(W, adapt_W):
-            W = adapt_W.fit_transform(W)
+        def split_val(W, adapt_W, null=None):
+            W = adapt_W.fit_transform(W, null)
+
             if in_val is not None:
                 W_tr = torch.tensor(W[~in_val], dtype=torch.float32, device=self.device)
                 W_val = torch.tensor(W[in_val], dtype=torch.float32, device=self.device)
+                if null is not None:
+                    W_tr_null = torch.tensor(null[~in_val], dtype=torch.bool, device=self.device)
+                    W_val_null = torch.tensor(null[in_val], dtype=torch.bool, device=self.device)
+                    return W_tr, W_val, W_tr_null, W_val_null
             else:
                 W_tr = torch.tensor(W, dtype=torch.float32, device=self.device)
                 W_val = None
+                if null is not None:
+                    W_tr_null = torch.tensor(null, dtype=torch.bool, device=self.device)
+                    W_val_null = None
+                    return W_tr, W_val, W_tr_null, W_val_null
             return W_tr, W_val
 
         Xtr, Xval = split_val(X, self.adapt_X)
         Ytr, Yval = split_val(Y, self.adapt_Y)
-        Ztr, Zval = split_val(Z, self.adapt_Z)
+        Ztr, Zval, Ztr_null, Zval_null = split_val(Z, self.adapt_Z, null=null_positions(Z))
 
         self.show_test_model = show_test_model
         if self.show_test_model is not None:
@@ -296,7 +325,7 @@ class NN3WayReg:
             optimizer.zero_grad()
             X_recons, Z_recons, Y_predicted = self.model(Xtr)
             Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
-            loss_tr, loss_y = self.loss_fn(Xtr, X_recons, Ytr, Y_predicted, Ztr, Z_recons)
+            loss_tr, loss_y = self.loss_fn(Xtr, X_recons, Ytr, Y_predicted, Ztr, Z_recons, Ztr_null)
             loss_tr.backward()
             optimizer.step()
 
@@ -306,7 +335,7 @@ class NN3WayReg:
                 self.model.eval()
                 X_recons, Z_recons, Y_predicted = self.model(Xval)
                 Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
-                loss_val, loss_y_val = self.loss_fn(Xval, X_recons, Yval, Y_predicted, Zval, Z_recons)
+                loss_val, loss_y_val = self.loss_fn(Xval, X_recons, Yval, Y_predicted, Zval, Z_recons, Zval_null)
                 losstype = 'Val'
             else:
                 # no validation: monitor the training loss instead
@@ -356,11 +385,13 @@ class NN3WayReg:
         self.adapt_Z = joblib.load(join(parent, f'{self.checkpoint_id}_adaptZ.pkl'))
         return self
 
-    def loss_fn(self, X, X_hat, Y, Y_hat, Z, Z_hat):
+    def loss_fn(self, X, X_hat, Y, Y_hat, Z, Z_hat, Z_null):
+        valid_mask = ~Z_null
+
         criterion = nn.MSELoss()
         y_loss = criterion(Y_hat, Y)
         x_loss = 0 if self.wX == 0 else criterion(X_hat, X)
-        z_loss = 0 if self.wZ == 0 else criterion(Z_hat, Z)
+        z_loss = 0 if self.wZ == 0 else criterion(Z_hat[valid_mask], Z[valid_mask])
         loss = self.wY*y_loss + self.wX*x_loss + self.wZ*z_loss
         if self.reg_strength > 0:
             loss += self.reg_strength * jaggedness(Y_hat)
@@ -453,6 +484,9 @@ class NN3WayReg:
             time.sleep(0.001)
 
 
+def null_positions(Z):
+    Z_null = np.all(Z == -1, axis=1)
+    return Z_null
 
 
 class DirectRegression:
