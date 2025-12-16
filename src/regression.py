@@ -244,7 +244,7 @@ class NN3WayReg:
                 break
             epoch+=1
             if self.max_epochs-epoch==0:
-                print('[STOP] maximum number of epochs reached')
+                print('\n[STOP] maximum number of epochs reached')
                 break
 
         print()

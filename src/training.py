@@ -38,8 +38,8 @@ def parse_args():
     parser.add_argument(
         "--exclude-models",
         nargs="+",  # list of string model names
-        default=["model41", "model45"],
-        help="List of models to exclude (default: model41, model45)."
+        default=[],
+        help="List of models to exclude (default: none)."
     )
 
     # 5. device (opcional)
@@ -58,7 +58,8 @@ def NewPAEzy(model_path=None, cuda=False):
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XYZ=True,
-        checkpoint_dir=model_path, checkpoint_id='AEzy'
+        checkpoint_dir=model_path, checkpoint_id='AEzy',
+        allow_incomplete_Y=False, allow_incomplete_Z=False
     )
 
 
@@ -68,7 +69,8 @@ def NewPAEZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
-        checkpoint_dir=model_path, checkpoint_id='AEZY'
+        checkpoint_dir=model_path, checkpoint_id='AEZY',
+        allow_incomplete_Y=False, allow_incomplete_Z=True
     )
 
 
@@ -78,7 +80,8 @@ def NewPAE2zy(model_path=None, cuda=False):
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XYZ=True,
-        checkpoint_dir=model_path, checkpoint_id='AE2zy'
+        checkpoint_dir=model_path, checkpoint_id='AE2zy',
+        allow_incomplete_Y=False, allow_incomplete_Z = False
     )
 
 
@@ -88,7 +91,8 @@ def NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
-        checkpoint_dir=model_path, checkpoint_id='AE2ZY'
+        checkpoint_dir=model_path, checkpoint_id='AE2ZY',
+        allow_incomplete_Y=False, allow_incomplete_Z=True
     )
 
 
