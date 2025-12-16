@@ -52,6 +52,27 @@ Things I have not explored so far:
 - Impose the smoothing to the Y signal (the only smoothing we are imposing is due to PCA in the "-y" variants)
 - Standardize Vol wrt N2 (they operate at very different scales)
 
+# PCA reductions
+# Go_pca = 8  # very good approximation (H2)
+# Gi_pca  = 12 # 12 is somehow good approximation (N2) -- do we need to simplify the input?
+# V_pca  = 8   # very good approximation (Vol)
+
+# RQ: does dropout help? looks like no!
+# RQ: does PCA helps? sometimes yes, others is better the orig representation... not clear!
+# RQ: complexity matters? deeper networks work better or overfit? not clear
+# RQ: best architecture?
+# RQ: smoothing matters?
+# RQ: more importance to loss Gout (wY)?
+# RQ: better using Vin as a regularization autoencoding or not?
+# RQ: better using Ldim>0 or not?
+
+# XYZ means 3way, and each signal is original
+# Xyz means 3way, but y and z is pca, X is original
+# XY  means 2way, the Z is still there but with wZ=0 (i.e., same capacity)
+# X2YZ  means 3way, wY is double the weight of the rest
+
+# testing idea: keep track of the y_loss independently and check whether there is a correlation tr-loss vs te-loss
+# testing idea (-w): wY is times the other two
 
 =============================
 - Reset: del model41, model45, and make variants "Z" work.

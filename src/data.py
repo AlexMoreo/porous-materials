@@ -2,14 +2,14 @@ import numpy as np
 import pandas as pd
 
 
-def load_both_data(path_input_gas, path_output_gas, cumulate_vol=False, normalize=False, return_index=False, exclude_id=None):
-    idxin, Xin, Yin = load_data(path_input_gas, cumulate_x=cumulate_vol, normalize=normalize, return_index=True, exclude_id=exclude_id)
-    idxout, Xout, Yout  = load_data(path_output_gas, cumulate_x=cumulate_vol, normalize=normalize, return_index=True, exclude_id=exclude_id)
+def load_both_data(path_input_gas, path_output_gas, cumulate_vol=False, normalize=False, return_index=False, exclude_id=None, null_val=-1.):
+    idxin, Xin, Yin = load_data(path_input_gas, cumulate_x=cumulate_vol, normalize=normalize, return_index=True, exclude_id=exclude_id, null_val=null_val)
+    idxout, Xout, Yout  = load_data(path_output_gas, cumulate_x=cumulate_vol, normalize=normalize, return_index=True, exclude_id=exclude_id, null_val=null_val)
     assert all(idxin==idxout), f'index mismatch in files {path_input_gas} and {path_output_gas}'
     return (idxin, Xin, Yin, Yout) if return_index else (Xin, Yin, Yout)
 
 
-def load_data(path, cumulate_x=False, normalize=False, return_index=False, exclude_id=None):
+def load_data(path, cumulate_x=False, normalize=False, return_index=False, exclude_id=None, null_val=-1.):
     df = pd.read_csv(path)
 
     if exclude_id is not None:
@@ -27,7 +27,7 @@ def load_data(path, cumulate_x=False, normalize=False, return_index=False, exclu
     total_vol = df['Total volume']
 
     n, Xcol = X.shape
-    X = X.loc[:, (X != 0).any()]
+    X = X.loc[:, ((X != 0) & (X != null_val)).any()]
     XcolNonZero = X.shape[1]
     Ycol = Y.shape[1]
     print(f'loaded file {path}: found {n} instances,'
@@ -38,11 +38,12 @@ def load_data(path, cumulate_x=False, normalize=False, return_index=False, exclu
     Y = Y.values
     total_vol = total_vol.values
 
+    null_X_rows = (X==null_val).all(axis=1)
     if cumulate_x:
-        X = np.cumsum(X, axis=1)
+        X[~null_X_rows] = np.cumsum(X[~null_X_rows], axis=1)
 
     if normalize:
-        X /= total_vol[:, np.newaxis]
+        X[~null_X_rows] /= total_vol[~null_X_rows, np.newaxis]
         Y /= total_vol[:, np.newaxis]
 
     if return_index:

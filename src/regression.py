@@ -1,11 +1,9 @@
 import os
 
 import numpy as np
-from sklearn.model_selection import LeaveOneOut, KFold, cross_val_predict
-from sklearn.multioutput import MultiOutputRegressor
+from sklearn.model_selection import cross_val_predict
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.svm import LinearSVR
 import torch
 from torch import nn, optim
 from os.path import join
@@ -21,14 +19,11 @@ from pathlib import Path
 
 class PCAadapt:
 
-    def __init__(self, components, force=True, normalize=False):
+    def __init__(self, components, normalize=False):
         self.n_components = components
-        self.force = force
         self.normalize = normalize
         self.pca = PCA(n_components=self.n_components)
         self.minmaxscaler = MinMaxScaler()
-        if force:
-            assert components is not None, 'components cannot be None if force=True'
 
     def _compress(self, Z, fit, Z_null=None):
         if Z_null is None:
@@ -43,15 +38,13 @@ class PCAadapt:
             Z_valid = norm_fn(Z_valid)
 
         # PCA (conditional)
-        if self.force or self.n_components is not None:
+        if self.n_components is not None:
             if ndim > self.n_components:
                 compress_fn = self.pca.fit_transform if fit else self.pca.transform
                 Z_valid = compress_fn(Z_valid)
-            elif self.force:
-                raise ValueError(f'requested PCA components={self.n_components} but input has {ndim} dimensions')
 
         # reconstruct for null values
-        Z_out = np.full((nel, Z_valid.shape[1]), -1)
+        Z_out = np.full((nel, Z_valid.shape[1]), -1., dtype=np.float32)
         Z_out[~Z_null] = Z_valid
 
         return Z_out
@@ -64,7 +57,7 @@ class PCAadapt:
         return self._compress(Z, fit=False, Z_null=Z_null)
 
     def inverse_transform(self, Z):
-        if self.force or self.n_components is not None:
+        if self.n_components is not None:
             if Z.shape[1] != self.n_components:
                 raise ValueError('inverse transform not understood')
 
@@ -75,145 +68,6 @@ class PCAadapt:
             Z = self.minmaxscaler.inverse_transform(Z)
 
         return Z
-
-
-class StackRegressor:
-
-    def __init__(self, regressor=LinearSVR(), mode='tat', k=5):
-        self.first_tier = MultiOutputRegressor(clone(regressor))
-        self.second_tier = MultiOutputRegressor(clone(regressor))
-        self.mode = mode
-        self.k = k
-        assert mode in ['tat', 'loo', 'kfcv'], 'wrong mode'
-
-    def fit(self, X, y):
-        if self.mode in ['loo', 'kfcv']:
-            if self.mode == 'loo':
-                cv = LeaveOneOut()
-            elif self.mode == 'kfcv':
-                cv = KFold(n_splits=self.k)
-            Z = []
-            for train, test in cv.split(X, y):
-                Xtr, ytr = X[train], y[train]
-                Xte, yte = X[test], y[test]
-
-                self.first_tier.fit(Xtr, ytr)
-                yte_pred = self.first_tier.predict(Xte)
-                Z.append(yte_pred)
-
-            Z = np.vstack(Z)
-            self.first_tier.fit(X, y)
-            self.second_tier.fit(Z, y)
-        elif self.mode == 'tat':
-            self.first_tier.fit(X, y)
-            Z = self.first_tier.predict(X)
-            self.second_tier.fit(Z,y)
-
-
-    def predict(self, X):
-        Z = self.first_tier.predict(X)
-        y_hat = self.second_tier.predict(Z)
-        return y_hat
-
-
-class NNReg:
-    def __init__(self, model, lr=0.003, reg_strength=0.1, clip=None, cuda=True, reduce_in=None, reduce_out=None):
-        self.model = model
-        self.lr = lr
-        self.reg_strength = reg_strength
-        self.clip = clip
-        self.cuda = cuda
-        self.reduce_in = reduce_in
-        self.reduce_out = reduce_out
-
-        if cuda:
-            self.model.cuda()
-
-    # def __repr__(self):
-    #     f'NR({self.model})-lr{self.lr}-rs{self.reg_strength}'
-
-    def fit(self, X, y):
-
-        if self.reduce_in:
-            self.adapt_in = PCAadapt(components=self.reduce_in)
-            X = self.adapt_in.fit_transform(X)
-        if self.reduce_out:
-            self.adapt_out = PCAadapt(components=self.reduce_out)
-            y = self.adapt_out.fit_transform(y)
-
-        X_tensor = torch.tensor(X, dtype=torch.float32)
-        y_tensor = torch.tensor(y, dtype=torch.float32)
-
-        if self.cuda:
-            X_tensor = X_tensor.cuda()
-            y_tensor = y_tensor.cuda()
-
-        criterion = nn.MSELoss()
-        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
-
-        num_epochs = np.inf
-        PATIENCE = 5000
-        best_loss = np.inf
-        patience = PATIENCE
-        epoch = 0
-
-        best_model_path = "best_model.pt"
-
-        #for epoch_ in range(num_epochs):
-        while patience > 0:
-            self.model.train_idx()
-            optimizer.zero_grad()
-            outputs = self.model(X_tensor)
-            if self.clip:
-                # outputs = F.sigmoid(outputs)
-                outputs = 1-F.relu(1-outputs)
-            loss = criterion(outputs, y_tensor)
-            if self.reg_strength>0:
-                loss += self.reg_strength * jaggedness(outputs)
-            loss.backward()
-            optimizer.step()
-
-            if loss < best_loss:
-                best_loss=loss.item()
-                patience=PATIENCE
-                # save best model
-                torch.save(self.model.state_dict(), best_model_path)
-            else:
-                patience-=1
-
-            print(f'\rEpoch [{epoch + 1:05d}{"" if num_epochs==np.inf else f"/{num_epochs}"}, '
-                  f'P={patience:04d}], '
-                  f'Loss: {loss.item():.10f}, '
-                  f'Best loss: {best_loss:.10f}', end='', flush=True)
-            if patience<=0:
-                print(f'\nMethod stopped after {epoch} epochs')
-                break
-            epoch+=1
-
-        print()
-
-        # Load the best model weights before returning
-        self.model.load_state_dict(torch.load(best_model_path))
-        self.best_loss = best_loss
-
-        return self
-
-    def predict(self, X):
-        if self.reduce_in:
-            X = self.adapt_in.transform(X)
-
-        self.model.eval()
-        with torch.no_grad():
-            X = torch.tensor(X, dtype=torch.float32)
-            if self.cuda:
-                X = X.cuda()
-            ypred = self.model(X)
-            if self.clip:
-                ypred = torch.clamp(ypred, min=0.0, max=1.0)
-            ypred = ypred.detach().cpu().numpy()
-            if self.reduce_out:
-                ypred = self.adapt_out.inverse_transform(ypred)
-            return ypred
 
 
 def jaggedness(output):
@@ -240,30 +94,38 @@ class NN3WayReg:
                  monotonic_Z=False,
                  smooth_prediction=False,
                  weight_decay=0,
-                 normalize_XY=False,
+                 allow_incomplete_Z=True,
+                 allow_incomplete_Y=False,
+                 normalize_XYZ=False,
                  checkpoint_dir='../checkpoints',
                  checkpoint_id=None,
                  max_epochs=np.inf):
+
+        assert wY > 0, 'prediction weight cannot be 0'
+        if checkpoint_id is None:
+            checkpoint_id = np.random.randint(low=0, high=10e8)
+        assert Y_red is None or not allow_incomplete_Y, \
+            (f"{Y_red=} was specified (thus PCA will be applied on Y), but {allow_incomplete_Y=}; "
+             f"this combination is incompatible")
         self.model = model
         self.lr = lr
         self.reg_strength = smooth_reg_weight
         self.clip = clip
         self.cuda = cuda
-        self.adapt_X = PCAadapt(components=X_red, force=False, normalize=normalize_XY)
-        self.adapt_Y = PCAadapt(components=Y_red, force=False, normalize=normalize_XY)
-        self.adapt_Z = PCAadapt(components=Z_red, force=False, normalize=normalize_XY)
-        assert wY > 0, 'prediction weight cannot be 0'
+        self.adapt_X = PCAadapt(components=X_red, normalize=normalize_XYZ)
+        self.adapt_Y = PCAadapt(components=Y_red, normalize=normalize_XYZ)
+        self.adapt_Z = PCAadapt(components=Z_red, normalize=normalize_XYZ)
         self.wX = wX
         self.wY = wY
         self.wZ = wZ
         self.monotonic_Z = monotonic_Z
         self.smooth_prediction = smooth_prediction
         self.checkpoint_dir = checkpoint_dir
-        if checkpoint_id is None:
-            checkpoint_id = np.random.randint(low=0, high=10e8)
         self.checkpoint_id = checkpoint_id
         self.max_epochs = max_epochs
         self.weight_decay = weight_decay
+        self.allow_incomplete_Z = allow_incomplete_Z
+        self.allow_incomplete_Y = allow_incomplete_Y
 
         if cuda:
             self.model.cuda()
@@ -296,9 +158,30 @@ class NN3WayReg:
                     return W_tr, W_val, W_tr_null, W_val_null
             return W_tr, W_val
 
+        Y_mask = (Y != -1)
+        if not self.allow_incomplete_Y:
+            complete_mask = Y_mask.all(axis=1)  # indicates fully specified rows in Y
+            print(f'filtering out {(1-complete_mask).sum()} incompletely specified samples')
+            X = X[complete_mask]
+            Y = Y[complete_mask]
+            Z = Z[complete_mask]
+            Y_mask = None
+
+        Z_null = null_positions(Z)
+        if not self.allow_incomplete_Z:
+            X = X[~Z_null]
+            Y = Y[~Z_null]
+            Z = Z[~Z_null]
+            if Y_mask is not None:
+                Y_mask = Y_mask[~Z_null]
+            Z_null = np.full(shape=Z.shape[0], fill_value=False, dtype=bool)
+
         Xtr, Xval = split_val(X, self.adapt_X)
         Ytr, Yval = split_val(Y, self.adapt_Y)
-        Ztr, Zval, Ztr_null, Zval_null = split_val(Z, self.adapt_Z, null=null_positions(Z))
+        Ztr, Zval, Ztr_null, Zval_null = split_val(Z, self.adapt_Z, null=Z_null)
+
+        if Y_mask is not None:
+            Y_mask = torch.tensor(Y_mask, device=self.device)
 
         self.show_test_model = show_test_model
         if self.show_test_model is not None:
@@ -317,7 +200,6 @@ class NN3WayReg:
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         best_model_path = join(self.checkpoint_dir, f"best_model_{self.checkpoint_id}.pt")
 
-        #for epoch_ in range(num_epochs):
         while patience > 0:
             # training step
             # -------------
@@ -325,7 +207,7 @@ class NN3WayReg:
             optimizer.zero_grad()
             X_recons, Z_recons, Y_predicted = self.model(Xtr)
             Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
-            loss_tr, loss_y = self.loss_fn(Xtr, X_recons, Ytr, Y_predicted, Ztr, Z_recons, Ztr_null)
+            loss_tr, loss_y = self.loss_fn(Xtr, X_recons, Ytr, Y_predicted, Ztr, Z_recons, Ztr_null, Y_mask)
             loss_tr.backward()
             optimizer.step()
 
@@ -335,7 +217,7 @@ class NN3WayReg:
                 self.model.eval()
                 X_recons, Z_recons, Y_predicted = self.model(Xval)
                 Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
-                loss_val, loss_y_val = self.loss_fn(Xval, X_recons, Yval, Y_predicted, Zval, Z_recons, Zval_null)
+                loss_val, loss_y_val = self.loss_fn(Xval, X_recons, Yval, Y_predicted, Zval, Z_recons, Zval_null, Y_mask)
                 losstype = 'Val'
             else:
                 # no validation: monitor the training loss instead
@@ -362,6 +244,7 @@ class NN3WayReg:
                 break
             epoch+=1
             if self.max_epochs-epoch==0:
+                print('[STOP] maximum number of epochs reached')
                 break
 
         print()
@@ -385,11 +268,15 @@ class NN3WayReg:
         self.adapt_Z = joblib.load(join(parent, f'{self.checkpoint_id}_adaptZ.pkl'))
         return self
 
-    def loss_fn(self, X, X_hat, Y, Y_hat, Z, Z_hat, Z_null):
+    def loss_fn(self, X, X_hat, Y, Y_hat, Z, Z_hat, Z_null, Y_mask=None):
         valid_mask = ~Z_null
 
         criterion = nn.MSELoss()
-        y_loss = criterion(Y_hat, Y)
+        if Y_mask is None:
+            y_loss = criterion(Y_hat, Y)
+        else:
+            y_loss = masked_mse(Y_hat, Y, Y_mask)
+
         x_loss = 0 if self.wX == 0 else criterion(X_hat, X)
         z_loss = 0 if self.wZ == 0 else criterion(Z_hat[valid_mask], Z[valid_mask])
         loss = self.wY*y_loss + self.wX*x_loss + self.wZ*z_loss
@@ -489,10 +376,24 @@ def null_positions(Z):
     return Z_null
 
 
+def masked_mse(Y_hat, Y, Y_mask):
+    """
+    Allows for partially unspecified values in Y; these are assumed to be represented by "-1" values
+
+    :param Y_hat: predicted values
+    :param Y: true values; may contain missing values indicated by a "-1"
+    :param Y_mask: boolean mask, indicating valid values
+    :return: the MSE between Y_hat and Y, skipping missing values
+    """
+    mse = (Y_hat - Y) ** 2
+    mse = mse * Y_mask.float()
+    return mse.sum() / (Y_mask.sum() + 1e-8)
+
+
 class DirectRegression:
     def __init__(self, regressor:BaseEstimator, x_red=None, y_red=None, normalize=False):
-        self.adaptX = PCAadapt(components=x_red, force=False, normalize=normalize)
-        self.adaptY = PCAadapt(components=y_red, force=False, normalize=normalize)
+        self.adaptX = PCAadapt(components=x_red, normalize=normalize)
+        self.adaptY = PCAadapt(components=y_red, normalize=normalize)
         self.rf = clone(regressor)
 
     def fit(self, X, Y, Z=None):
@@ -510,9 +411,9 @@ class DirectRegression:
 
 class TwoStepRegression:
     def __init__(self, regressor:BaseEstimator, x_red=None, y_red=None, z_red=None):
-        self.adaptX = PCAadapt(components=x_red, force=False)
-        self.adaptZ = PCAadapt(components=z_red, force=False)
-        self.adaptY = PCAadapt(components=y_red, force=False)
+        self.adaptX = PCAadapt(components=x_red)
+        self.adaptZ = PCAadapt(components=z_red)
+        self.adaptY = PCAadapt(components=y_red)
         self.rf1 = clone(regressor)
         self.rf2 = clone(regressor)
 

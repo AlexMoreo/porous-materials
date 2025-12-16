@@ -15,76 +15,68 @@ from result_table.src.table import LatexTable
 from utils import mse, ResultTracker, plot_result
 import sys
 
-results_dir = '../results_molg'
+results_dir = '../results_incomplete'
 # only_tables = True
 only_tables =  "tables" in sys.argv
 add_ref_color=False
-# chosen_test = 'model35'
-# chosen_test = 'model53'
-# chosen_test = 'model70'
-chosen_test = None
 
 with_validation = False
 
 only_models = None
+# selected_tests = ['exp_maxsorb', 'exp_C-RES1.2', 'exp_C-RES1.3', 'exp_CPS-800', 'exp_CPS-0-KOH', 'exp_Norit_Row']
 selected_tests = None
-
-# PCA reductions
-# Go_pca = 8  # very good approximation (H2)
-# Gi_pca  = 12 # 12 is somehow good approximation (N2) -- do we need to simplify the input?
-# V_pca  = 8   # very good approximation (Vol)
-
-# RQ: does dropout help? looks like no!
-# RQ: does PCA helps? sometimes yes, others is better the orig representation... not clear!
-# RQ: complexity matters? deeper networks work better or overfit? not clear
-# RQ: best architecture?
-# RQ: smoothing matters?
-# RQ: more importance to loss Gout (wY)?
-# RQ: better using Vin as a regularization autoencoding or not?
-# RQ: better using Ldim>0 or not?
-
-
-# XYZ means 3way, and each signal is original
-# Xyz means 3way, but y and z is pca, X is original
-# XY  means 2way, the Z is still there but with wZ=0 (i.e., same capacity)
-# X2YZ  means 3way, wY is double the weight of the rest
-
-# testing idea: keep track of the y_loss independently and check whether there is a correlation tr-loss vs te-loss
-# testing idea (-w): wY is times the other two
 
 baselines = ['RFY', 'RFy', '1NN' ]
 rename_method = {}
 
 def methods():
-    rf = RandomForestRegressor()
-    yield 'RFY', DirectRegression(rf, normalize=True),
+    # rf = RandomForestRegressor()
+    # yield 'RFY', DirectRegression(rf, normalize=True),
     #yield 'RFy', DirectRegression(rf, y_red=Go_pca)
-    yield '1NN', NearestNeighbor()
-    yield 'PAE2zy', NN3WayReg(
-        model=AE2(
-            Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XY=True
-    ),
+    # yield '1NN', NearestNeighbor()
+    # yield 'PAE2zy', NN3WayReg(
+    #     model=AE2(
+    #         Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
+    #     ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
+    #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XYZ=True,
+    #     allow_incomplete_Y=False, allow_incomplete_Z=False
+    # ),
     yield 'PAE2ZY', NN3WayReg(
         model=AE2(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XY=True
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
+        allow_incomplete_Y=False, allow_incomplete_Z=True
     ),
-    yield 'PAExy', NN3WayReg( # nomenclature is wrong, should be PAEzy
-        model=AE(
-            Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XY=True
+    yield 'PAE2ZY-com', NN3WayReg(
+        model=AE2(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
+        allow_incomplete_Y=False, allow_incomplete_Z=False
     ),
+    # yield 'PAEzy', NN3WayReg(
+    #     model=AE(
+    #         Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
+    #     ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001,
+    #     smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XYZ=True,
+    #     allow_incomplete_Y=False, allow_incomplete_Z=False
+    # ),
     yield 'PAEZY', NN3WayReg( # relaunching... it was AE2 instead of AE
         model=AE(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XY=True
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
+        allow_incomplete_Y=False, allow_incomplete_Z=True
     ),
-    yield 'EnsRedo', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZY'])
+    yield 'PAEZY-com', NN3WayReg( # relaunching... it was AE2 instead of AE
+        model=AE(
+            Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
+        ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
+        allow_incomplete_Y=False, allow_incomplete_Z=False
+    ),
+    # yield 'EnsRedo', Ensemble(path=results_dir, methods=['PAE2zy', 'PAE2ZY', 'PAExy', 'PAEZY'])
 
 
 
@@ -120,7 +112,7 @@ def new_table():
     return LatexTable('mse', configuration=table_config)
 
 
-def load_data():
+def load_data(folder):
     # path_h2 = '../data/training/dataset_for_hydrogen.csv'
     # path_n2 = '../data/training/dataset_for_nitrogen.csv'
     # return load_both_data(
@@ -128,15 +120,15 @@ def load_data():
     #     return_index=True, exclude_id=['model41', 'model45']
     # )
 
-    path_h2 = '../data/training_molg/dataset_hydrogen_molg.csv'
-    path_n2 = '../data/training_molg/dataset_nitrogen_molg.csv'
+    path_h2 = join(folder, 'training_set_with_exp_H2.csv')
+    path_n2 = join(folder, 'training_set_with_exp_N2.csv')
     test_names, Vin, Gin, Gout = load_both_data(
-        path_input_gas=path_n2, path_output_gas=path_h2, cumulate_vol=False, normalize=True,
-        return_index=True, exclude_id=['model41', 'model45']
+        path_input_gas=path_n2,
+        path_output_gas=path_h2,
+        cumulate_vol=True,
+        normalize=True,
+        return_index=True
     )
-    Vin = Vin[:,:59]
-    # Gin *= 100000
-    # Gout *= 100000
     return test_names, Vin, Gin, Gout
 
 
@@ -145,10 +137,8 @@ if __name__ == '__main__':
     table_path = join(results_dir, f'tables/mse.pdf')
     error_scale=1e6
 
-    test_names, Vin, Gin, Gout = load_data()
+    test_names, Vin, Gin, Gout = load_data('../data/incomplete/')
     (n_instances, V_dim), Gi_dim, Go_dim = Vin.shape, Gin.shape[1], Gout.shape[1]
-
-    val_mask = validation_idx(Gin, n_groups=5, val_prop=0.1, random_state=0)
 
     errors = defaultdict(lambda :[])
 
@@ -166,13 +156,16 @@ if __name__ == '__main__':
     for (train_idx, test_idx) in loo.split(Gin):
         test_name = test_names[test_idx[0]]
         print(f'{test_name}:')
-        if chosen_test is not None and test_name!=chosen_test: continue
 
-        Vin_tr, Gin_tr, Gout_tr, in_val = Vin[train_idx], Gin[train_idx], Gout[train_idx], val_mask[train_idx]
+        Vin_tr, Gin_tr, Gout_tr = Vin[train_idx], Gin[train_idx], Gout[train_idx]
         Vin_te, Gin_te, Gout_te = Vin[test_idx],  Gin[test_idx],  Gout[test_idx]
 
+        # use validation set?
         if not with_validation:
             in_val = None
+        else:
+            val_mask = validation_idx(Gin, n_groups=5, val_prop=0.1, random_state=0)
+            in_val = val_mask[train_idx]
 
         for method, reg in methods():
             if not only_tables:
