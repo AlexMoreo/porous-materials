@@ -127,7 +127,7 @@ if __name__ == '__main__':
         for ood in idx[ood_examples]:
             print(f'\t{ood}')
     else:
-        print(f'No out-of-distribution test ipunt found')
+        print(f'No out-of-distribution test input found')
 
     print("[Done]")
 
