@@ -9,13 +9,13 @@ from data import load_both_data
 from data_analysis.curve_clustering import cluser_curves
 from nn_modules import FF3W, AE, AE2, AE3
 from regression import NN3WayReg, DirectRegression, NearestNeighbor, MetaLearner, \
-    TwoStepRegression, Ensemble
+    TwoStepRegression, Ensemble, masked_mse
 from result_table.src.format import Configuration
 from result_table.src.table import LatexTable
 from utils import mse, ResultTracker, plot_result
 import sys
 
-results_dir = '../results_incomplete'
+results_dir = '../results_incomplete2'
 # only_tables = True
 only_tables =  "tables" in sys.argv
 add_ref_color=False
@@ -44,9 +44,11 @@ def methods():
     yield 'PAE2ZY', NN3WayReg(
         model=AE2(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
+        ), wX=0, wZ=0.001,
+        #X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim,
+        lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
-        allow_incomplete_Y=False, allow_incomplete_Z=True
+        allow_incomplete_Y=True, allow_incomplete_Z=True
     ),
     yield 'PAE2ZY-com', NN3WayReg(
         model=AE2(
@@ -67,7 +69,7 @@ def methods():
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
-        allow_incomplete_Y=False, allow_incomplete_Z=True
+        allow_incomplete_Y=True, allow_incomplete_Z=True
     ),
     yield 'PAEZY-com', NN3WayReg( # relaunching... it was AE2 instead of AE
         model=AE(
@@ -104,7 +106,7 @@ def new_table():
     table_config=Configuration(
         show_std=False,
         mean_prec=3,
-        resizebox=.5,
+        resizebox=.4,
         stat_test=None,
         with_mean=True,
         with_rank=True
@@ -120,8 +122,8 @@ def load_data(folder):
     #     return_index=True, exclude_id=['model41', 'model45']
     # )
 
-    path_h2 = join(folder, 'training_set_with_exp_H2.csv')
     path_n2 = join(folder, 'training_set_with_exp_N2.csv')
+    path_h2 = join(folder, 'training_set_with_gaps_H2.csv')
     test_names, Vin, Gin, Gout = load_both_data(
         path_input_gas=path_n2,
         path_output_gas=path_h2,
@@ -234,7 +236,7 @@ if __name__ == '__main__':
                     plot_result(Vin_te[0], Vout_pred[0], partial_path + '-Vin.png', err_fun=mse, scale_err=1e6)
 
                 # save error results
-                error_mean = mse(Gout_te, Gout_pred)
+                error_mean = masked_mse(Gout_pred, Gout_te)
                 method_errors.update(test_name, error_mean)
 
             else:

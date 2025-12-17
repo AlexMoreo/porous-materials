@@ -91,6 +91,8 @@ if __name__ == '__main__':
     print('Loading AE-type 2 over (Z,Y)')
     PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'best_model_AE2ZY.pt'))
 
+    uncertainty_X = joblib.load(join(model_path, 'uncertainty_X.pkl'))
+
     print("[Done]")
 
     Y1, _, Z1 = PAEzy.predict(Gin, return_XZ=True)
@@ -118,6 +120,14 @@ if __name__ == '__main__':
 
     print(f"Saving predicted gas-out to {path_Vout}")
     save_prediction(idx, Zpred, path_Vout)
+
+    ood_examples = uncertainty_X.predict(Gin)
+    if ood_examples.any():
+        print(f'High uncertainty (>.95%) reached for models:')
+        for ood in idx[ood_examples]:
+            print(f'\t{ood}')
+    else:
+        print(f'No out-of-distribution test ipunt found')
 
     print("[Done]")
 

@@ -25,17 +25,26 @@ class PCAadapt:
         self.pca = PCA(n_components=self.n_components)
         self.minmaxscaler = MinMaxScaler()
 
-    def _compress(self, Z, fit, Z_null=None):
-        if Z_null is None:
-            Z_null = np.full(shape=Z.shape[0], fill_value=False)
+    def _compress(self, Z, fit, null_val=None):
+        null_mask = (Z==null_val)
+        null_rows = null_mask.all(axis=1)
 
         nel, ndim = Z.shape
-        Z_valid = Z[~Z_null]
+        Z_valid = Z[~null_rows]
 
         # normalization step
         if self.normalize:
-            norm_fn = self.minmaxscaler.fit_transform if fit else self.minmaxscaler.transform
+            unsafe_values_mask = null_mask[~null_rows]
+            if fit:
+                norm_fn = self.minmaxscaler.fit_transform
+                # avoid null_val to be taken as the min for the scaling
+
+                safe_value = Z_valid[~unsafe_values_mask].mean()
+                Z_valid[unsafe_values_mask] = safe_value
+            else:
+                norm_fn = self.minmaxscaler.transform
             Z_valid = norm_fn(Z_valid)
+            Z_valid[unsafe_values_mask] = null_val  # restores the null_value
 
         # PCA (conditional)
         if self.n_components is not None:
@@ -44,17 +53,17 @@ class PCAadapt:
                 Z_valid = compress_fn(Z_valid)
 
         # reconstruct for null values
-        Z_out = np.full((nel, Z_valid.shape[1]), -1., dtype=np.float32)
-        Z_out[~Z_null] = Z_valid
+        Z_out = np.full((nel, Z_valid.shape[1]), null_val, dtype=np.float32)
+        Z_out[~null_rows] = Z_valid
 
         return Z_out
 
-    def fit_transform(self, Z, Z_null=None):
+    def fit_transform(self, Z, null_val=None):
         self.orig_dim = Z.shape[1]
-        return self._compress(Z, fit=True, Z_null=Z_null)
+        return self._compress(Z, fit=True, null_val=null_val)
 
     def transform(self, Z, Z_null=None):
-        return self._compress(Z, fit=False, Z_null=Z_null)
+        return self._compress(Z, fit=False, null_val=Z_null)
 
     def inverse_transform(self, Z):
         if self.n_components is not None:
@@ -139,24 +148,24 @@ class NN3WayReg:
             self.smooth_layer.weight.data.fill_(1 / self.smooth_length)
 
     def fit(self, X, Y, Z, in_val=None, show_test_model=None):
-        def split_val(W, adapt_W, null=None):
-            W = adapt_W.fit_transform(W, null)
-
-            if in_val is not None:
-                W_tr = torch.tensor(W[~in_val], dtype=torch.float32, device=self.device)
-                W_val = torch.tensor(W[in_val], dtype=torch.float32, device=self.device)
-                if null is not None:
-                    W_tr_null = torch.tensor(null[~in_val], dtype=torch.bool, device=self.device)
-                    W_val_null = torch.tensor(null[in_val], dtype=torch.bool, device=self.device)
-                    return W_tr, W_val, W_tr_null, W_val_null
-            else:
-                W_tr = torch.tensor(W, dtype=torch.float32, device=self.device)
-                W_val = None
-                if null is not None:
-                    W_tr_null = torch.tensor(null, dtype=torch.bool, device=self.device)
-                    W_val_null = None
-                    return W_tr, W_val, W_tr_null, W_val_null
-            return W_tr, W_val
+        # def split_val(W, adapt_W, null=None):
+        #     W = adapt_W.fit_transform(W, null)
+        #
+        #     if in_val is not None:
+        #         W_tr = torch.tensor(W[~in_val], dtype=torch.float32, device=self.device)
+        #         W_val = torch.tensor(W[in_val], dtype=torch.float32, device=self.device)
+        #         if null is not None:
+        #             W_tr_null = torch.tensor(null[~in_val], dtype=torch.bool, device=self.device)
+        #             W_val_null = torch.tensor(null[in_val], dtype=torch.bool, device=self.device)
+        #             return W_tr, W_val, W_tr_null, W_val_null
+        #     else:
+        #         W_tr = torch.tensor(W, dtype=torch.float32, device=self.device)
+        #         W_val = None
+        #         if null is not None:
+        #             W_tr_null = torch.tensor(null, dtype=torch.bool, device=self.device)
+        #             W_val_null = None
+        #             return W_tr, W_val, W_tr_null, W_val_null
+        #     return W_tr, W_val
 
         Y_mask = (Y != -1)
         if not self.allow_incomplete_Y:
@@ -167,7 +176,7 @@ class NN3WayReg:
             Z = Z[complete_mask]
             Y_mask = None
 
-        Z_null = null_positions(Z)
+        Z_null = full_null_rows(Z)
         if not self.allow_incomplete_Z:
             X = X[~Z_null]
             Y = Y[~Z_null]
@@ -176,12 +185,16 @@ class NN3WayReg:
                 Y_mask = Y_mask[~Z_null]
             Z_null = np.full(shape=Z.shape[0], fill_value=False, dtype=bool)
 
-        Xtr, Xval = split_val(X, self.adapt_X)
-        Ytr, Yval = split_val(Y, self.adapt_Y)
-        Ztr, Zval, Ztr_null, Zval_null = split_val(Z, self.adapt_Z, null=Z_null)
+        X = self.adapt_X.fit_transform(X)
+        Xtr, Xval = split_to_tensors(X, in_val, device=self.device)
 
-        if Y_mask is not None:
-            Y_mask = torch.tensor(Y_mask, device=self.device)
+        Y = self.adapt_Y.fit_transform(Y, null_val=-1)
+        Ytr, Yval = split_to_tensors(Y, in_val, device=self.device)
+        Ytr_mask, Yval_mask = split_to_tensors(Y_mask, in_val, dtype=torch.bool, device=self.device)
+
+        Z = self.adapt_Z.fit_transform(Z, null_val=-1)
+        Ztr, Zval = split_to_tensors(Z, in_val, device=self.device)
+        Ztr_null, Zval_null = split_to_tensors(Z_null, in_val, dtype=torch.bool)
 
         self.show_test_model = show_test_model
         if self.show_test_model is not None:
@@ -207,7 +220,7 @@ class NN3WayReg:
             optimizer.zero_grad()
             X_recons, Z_recons, Y_predicted = self.model(Xtr)
             Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
-            loss_tr, loss_y = self.loss_fn(Xtr, X_recons, Ytr, Y_predicted, Ztr, Z_recons, Ztr_null, Y_mask)
+            loss_tr, loss_y = self.loss_fn(Xtr, X_recons, Ytr, Y_predicted, Ztr, Z_recons, Ztr_null, Ytr_mask)
             loss_tr.backward()
             optimizer.step()
 
@@ -217,7 +230,7 @@ class NN3WayReg:
                 self.model.eval()
                 X_recons, Z_recons, Y_predicted = self.model(Xval)
                 Y_predicted, Z_recons = self.post_process(Y_predicted, Z_recons)
-                loss_val, loss_y_val = self.loss_fn(Xval, X_recons, Yval, Y_predicted, Zval, Z_recons, Zval_null, Y_mask)
+                loss_val, loss_y_val = self.loss_fn(Xval, X_recons, Yval, Y_predicted, Zval, Z_recons, Zval_null, Yval_mask)
                 losstype = 'Val'
             else:
                 # no validation: monitor the training loss instead
@@ -371,12 +384,12 @@ class NN3WayReg:
             time.sleep(0.001)
 
 
-def null_positions(Z):
+def full_null_rows(Z):
     Z_null = np.all(Z == -1, axis=1)
     return Z_null
 
 
-def masked_mse(Y_hat, Y, Y_mask):
+def masked_mse(Y_hat, Y, Y_mask=None):
     """
     Allows for partially unspecified values in Y; these are assumed to be represented by "-1" values
 
@@ -385,10 +398,24 @@ def masked_mse(Y_hat, Y, Y_mask):
     :param Y_mask: boolean mask, indicating valid values
     :return: the MSE between Y_hat and Y, skipping missing values
     """
+    if Y_mask is None:
+        Y_mask = (Y!=-1)
     mse = (Y_hat - Y) ** 2
     mse = mse * Y_mask.float()
-    return mse.sum() / (Y_mask.sum() + 1e-8)
+    return mse.sum() / (Y_mask.sum() + 1e-15)
 
+
+def split_to_tensors(W, in_val, dtype=torch.float32, device='cpu'):
+    if W is None:
+        return None, None
+
+    if in_val is not None:
+        W_tr = torch.tensor(W[~in_val], dtype=dtype, device=device)
+        W_val = torch.tensor(W[in_val], dtype=dtype, device=device)
+    else:
+        W_tr = torch.tensor(W, dtype=dtype, device=device)
+        W_val = None
+    return W_tr, W_val
 
 class DirectRegression:
     def __init__(self, regressor:BaseEstimator, x_red=None, y_red=None, normalize=False):

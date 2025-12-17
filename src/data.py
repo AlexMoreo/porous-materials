@@ -27,7 +27,7 @@ def load_data(path, cumulate_x=False, normalize=False, return_index=False, exclu
     total_vol = df['Total volume']
 
     n, Xcol = X.shape
-    X = X.loc[:, ((X != 0) & (X != null_val)).any()]
+    X = X.loc[:, ((X != 0) & (X != null_val)).any()]  # remove empty columns (all 0 or null value)
     XcolNonZero = X.shape[1]
     Ycol = Y.shape[1]
     print(f'loaded file {path}: found {n} instances,'
@@ -44,7 +44,9 @@ def load_data(path, cumulate_x=False, normalize=False, return_index=False, exclu
 
     if normalize:
         X[~null_X_rows] /= total_vol[~null_X_rows, np.newaxis]
+        null_Y_mask = (Y==null_val)
         Y /= total_vol[:, np.newaxis]
+        Y[null_Y_mask] = null_val
 
     if return_index:
         return idx, X, Y

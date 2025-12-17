@@ -1,10 +1,14 @@
 import os
 import pickle
 
+import joblib
+
 from data import load_both_data
 from nn_modules import AE2, AE
 from regression import NN3WayReg
 import argparse
+
+from uncertainty import Uncertainty
 
 
 def parse_args():
@@ -67,10 +71,12 @@ def NewPAEZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
     return NN3WayReg(
         model=AE(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.0001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001, cuda=cuda,
+        ), wX=0, wZ=0.0001,
+        #X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim,
+        lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
         checkpoint_dir=model_path, checkpoint_id='AEZY',
-        allow_incomplete_Y=False, allow_incomplete_Z=True
+        allow_incomplete_Y=True, allow_incomplete_Z=True
     )
 
 
@@ -89,10 +95,12 @@ def NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
     return NN3WayReg(
         model=AE2(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
-        ), wX=0, wZ=0.001, X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim, lr=0.001, cuda=cuda,
+        ), wX=0, wZ=0.001,
+        # X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim,
+        lr=0.001, cuda=cuda,
         smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
         checkpoint_dir=model_path, checkpoint_id='AE2ZY',
-        allow_incomplete_Y=False, allow_incomplete_Z=True
+        allow_incomplete_Y=True, allow_incomplete_Z=True
     )
 
 
@@ -141,6 +149,9 @@ if __name__ == '__main__':
 
     print('Training AE-type 2 over (Z,Y)')
     PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path, cuda=cuda).fit(Gin, Gout, Vin)
+
+    uncertainty_X = Uncertainty().fit(Gin)
+    joblib.dump(uncertainty_X, os.path.join(model_path, 'uncertainty_X.pkl'))
 
     print("[Done]")
 
