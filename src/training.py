@@ -4,8 +4,8 @@ import pickle
 import joblib
 
 from data import load_both_data
-from nn_modules import AE2, AE
-from regression import NN3WayReg
+from nn_modules import RegressorA, RegressorB
+from regression import NeuralRegressor
 import argparse
 
 from uncertainty import Uncertainty
@@ -56,49 +56,49 @@ def parse_args():
     return parser.parse_args()
 
 
-def NewPAEzy(model_path=None, cuda=False):
-    return NN3WayReg(
-        model=AE(
+def NewRegressorA_pca(model_path=None, cuda=False):
+    return NeuralRegressor(
+        model=RegressorA(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001, X_red=10, Z_red=10, Y_red=10, lr=0.001, cuda=cuda,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XYZ=True,
+        weight_decay=0.00000001, max_epochs=25_000, normalize_XYZ=True,
         checkpoint_dir=model_path, checkpoint_id='AEzy',
         allow_incomplete_Y=False, allow_incomplete_Z=False
     )
 
 
-def NewPAEZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
-    return NN3WayReg(
-        model=AE(
+def NewRegressorA_raw(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
+    return NeuralRegressor(
+        model=RegressorA(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.0001,
         #X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim,
         lr=0.001, cuda=cuda,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
+        weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
         checkpoint_dir=model_path, checkpoint_id='AEZY',
         allow_incomplete_Y=True, allow_incomplete_Z=True
     )
 
 
-def NewPAE2zy(model_path=None, cuda=False):
-    return NN3WayReg(
-        model=AE2(
+def NewRegressorB_pca(model_path=None, cuda=False):
+    return NeuralRegressor(
+        model=RegressorB(
             Xdim=10, Zdim=10, Ydim=10, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.001, X_red=10, Z_red=10, Y_red=10, lr=0.001, cuda=cuda,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=25_000, normalize_XYZ=True,
+        weight_decay=0.00000001, max_epochs=25_000, normalize_XYZ=True,
         checkpoint_dir=model_path, checkpoint_id='AE2zy',
         allow_incomplete_Y=False, allow_incomplete_Z = False
     )
 
 
-def NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
-    return NN3WayReg(
-        model=AE2(
+def NewRegressorB_raw(Gi_dim, V_dim, Go_dim, model_path=None, cuda=False):
+    return NeuralRegressor(
+        model=RegressorB(
             Xdim=Gi_dim, Zdim=V_dim, Ydim=Go_dim, Ldim=1024, hidden=[1024]
         ), wX=0, wZ=0.001,
         # X_red=Gi_dim, Z_red=V_dim, Y_red=Go_dim,
         lr=0.001, cuda=cuda,
-        smooth_prediction=False, smooth_reg_weight=0.000, weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
+        weight_decay=0.00000001, max_epochs=50_000, normalize_XYZ=True,
         checkpoint_dir=model_path, checkpoint_id='AE2ZY',
         allow_incomplete_Y=True, allow_incomplete_Z=True
     )
@@ -138,20 +138,19 @@ if __name__ == '__main__':
     }
     pickle.dump(model_params, open(os.path.join(model_path, 'params.dict'), 'wb'), pickle.HIGHEST_PROTOCOL)
 
-    print('Training AE-type 1 over (z,y)')
-    PAEzy = NewPAEzy(model_path, cuda=cuda).fit(Gin, Gout, Vin)
+    print('Training RegressorA_pca')
+    regressor_a_pca = NewRegressorA_pca(model_path, cuda=cuda).fit(Gin, Gout, Vin)
 
-    print('Training AE-type 1 over (Z,Y)')
-    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim, model_path, cuda=cuda).fit(Gin, Gout, Vin)
+    print('Training RegressorA_raw')
+    regressor_a_raw = NewRegressorA_raw(Gi_dim, V_dim, Go_dim, model_path, cuda=cuda).fit(Gin, Gout, Vin)
 
-    print('Training AE-type 2 over (z,y)')
-    PAE2zy = NewPAE2zy(model_path, cuda=cuda).fit(Gin, Gout, Vin)
+    print('Training RegressorB_pca')
+    regressor_b_pca = NewRegressorB_pca(model_path, cuda=cuda).fit(Gin, Gout, Vin)
 
-    print('Training AE-type 2 over (Z,Y)')
-    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim, model_path, cuda=cuda).fit(Gin, Gout, Vin)
+    print('Training RegressorB_raw')
+    regressor_b_raw = NewRegressorB_raw(Gi_dim, V_dim, Go_dim, model_path, cuda=cuda).fit(Gin, Gout, Vin)
 
     uncertainty_X = Uncertainty().fit(Gin)
     joblib.dump(uncertainty_X, os.path.join(model_path, 'uncertainty_X.pkl'))
 
     print("[Done]")
-

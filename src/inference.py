@@ -80,32 +80,32 @@ if __name__ == '__main__':
          f'found in {args.input}: {Gin.shape[1]}')
 
     print('Loading AE-type 1 over (z,y)')
-    PAEzy = NewPAEzy().load_model(join(model_path, 'best_model_AEzy.pt'))
+    regressor_a_pca = NewRegressorA_pca().load_model(join(model_path, 'best_model_AEzy.pt'))
 
     print('Loading AE-type 1 over (Z,Y)')
-    PAEZY = NewPAEZY(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'best_model_AEZY.pt'))
+    regressor_a_raw = NewRegressorA_raw(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'best_model_AEZY.pt'))
 
     print('Loading AE-type 2 over (z,y)')
-    PAE2zy = NewPAE2zy().load_model(join(model_path, 'best_model_AE2zy.pt'))
+    regressor_b_pca = NewRegressorB_pca().load_model(join(model_path, 'best_model_AE2zy.pt'))
 
     print('Loading AE-type 2 over (Z,Y)')
-    PAE2ZY = NewPAE2ZY(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'best_model_AE2ZY.pt'))
+    regressor_b_raw = NewRegressorB_raw(Gi_dim, V_dim, Go_dim).load_model(join(model_path, 'best_model_AE2ZY.pt'))
 
     uncertainty_X = joblib.load(join(model_path, 'uncertainty_X.pkl'))
 
     print("[Done]")
 
-    Y1, _, Z1 = PAEzy.predict(Gin, return_XZ=True)
-    Y2, _, Z2 = PAEZY.predict(Gin, return_XZ=True)
-    Y3, _, Z3 = PAE2zy.predict(Gin, return_XZ=True)
-    Y4, _, Z4 = PAE2ZY.predict(Gin, return_XZ=True)
+    Y1, _, Z1 = regressor_a_pca.predict(Gin, return_XZ=True)
+    Y2, _, Z2 = regressor_a_raw.predict(Gin, return_XZ=True)
+    Y3, _, Z3 = regressor_b_pca.predict(Gin, return_XZ=True)
+    Y4, _, Z4 = regressor_b_raw.predict(Gin, return_XZ=True)
 
 
     # out-gas is taken as an ensemble of 4 models, and returns the "closest to mean" curve
     Ypred = np.asarray([closest_to_mean(curves=list(preds)) for preds in zip(Y1, Y2, Y3, Y4)])
     Ypred *= tot_vol
 
-    # out-vol is taken from PAE2zy
+    # out-vol is taken from RegressorB_pca
     Zpred = Z3*tot_vol
     Zpred = np.clip(Zpred, a_min=0, a_max=tot_vol)
     Zpred = np.diff(Zpred, axis=1, prepend=0)
@@ -130,6 +130,5 @@ if __name__ == '__main__':
         print(f'No out-of-distribution test input found')
 
     print("[Done]")
-
 
 
